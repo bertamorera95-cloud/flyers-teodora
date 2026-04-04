@@ -506,7 +506,18 @@ function initFirebase() {
     db = firebase.database();
 
     firebase.database().ref(".info/connected").on("value", snap => {
-      setSyncStatus(snap.val() ? "online" : "offline");
+      if (snap.val()) {
+        // Verificar que Firebase acepta escrituras (test de permisos)
+        db.ref("_ping").set({ t: Date.now() })
+          .then(() => { db.ref("_ping").remove(); setSyncStatus("online"); })
+          .catch(err => {
+            setSyncStatus("rules_error");
+            showToast("⚠️ Firebase: sin permiso de escritura. Revisa las reglas en la consola.");
+            console.error("Firebase write test failed:", err);
+          });
+      } else {
+        setSyncStatus("offline");
+      }
     });
 
     // escuchar todos los reports
@@ -697,7 +708,8 @@ function writeSummary(data) {
     allReports[selectedDateKey][currentTrainer].summary || {}, data
   );
   saveBackup();
-  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/summary`).update(data);
+  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/summary`).update(data)
+    .catch(err => showToast("⚠️ Error Firebase: " + err.message));
   refreshTodayData();
   renderAll();
 }
@@ -709,7 +721,8 @@ function writeFlyer(entry) {
   const key = "local_" + Date.now();
   allReports[selectedDateKey][currentTrainer].flyers[key] = entry;
   saveBackup();
-  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/flyers`).push(entry);
+  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/flyers`).push(entry)
+    .catch(err => showToast("⚠️ Error Firebase: " + err.message));
   refreshTodayData();
   renderAll();
 }
@@ -865,9 +878,10 @@ function setSyncStatus(s) {
   const dot   = document.getElementById("sync-dot");
   const label = document.getElementById("sync-label");
   dot.className = "sync-dot";
-  if (s === "online")  { dot.classList.add("online");  label.textContent = "Sincronizado en tiempo real"; }
-  else if (s==="offline") { dot.classList.add("offline"); label.textContent = "Sin conexión"; }
-  else                 {                                label.textContent = "Modo local"; }
+  if (s === "online")        { dot.classList.add("online");  label.textContent = "Sincronizado en tiempo real ✓"; }
+  else if (s === "offline")  { dot.classList.add("offline"); label.textContent = "Sin conexión"; }
+  else if (s === "rules_error") { dot.classList.add("offline"); label.textContent = "⚠️ Firebase: sin permiso de escritura"; }
+  else                       {                                label.textContent = "Modo local"; }
 }
 
 // ── toast ──────────────────────────────────────────────────────────
