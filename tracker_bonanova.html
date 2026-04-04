@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Captación de Clientes Teodora Lamadrid</title>
+  <style>
+    :root {
+      --bg:      #0f1923;
+      --bg2:     #161f2b;
+      --bg3:     #1a2840;
+      --border:  #223040;
+      --border2: #2a4060;
+      --text:    #e8edf2;
+      --sub:     #7a9ab5;
+      --green:   #3ecf8e;
+      --orange:  #f5a623;
+      --red:     #f07070;
+      --blue:    #69b8f7;
+      --purple:  #b87af5;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 520px; margin: 0 auto; }
+
+    /* ── TOP BAR ───────────────────────────────────────────────── */
+    #topbar {
+      background: #0d1620; border-bottom: 1px solid var(--border);
+      padding: 12px 16px; position: sticky; top: 0; z-index: 100;
+    }
+    #topbar h1 { font-size: 14px; font-weight: 700; color: #e2f0ff; }
+    #topbar-sub { font-size: 11px; color: var(--sub); margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sub); display: inline-block; }
+    .sync-dot.online { background: var(--green); box-shadow: 0 0 5px #3ecf8e88; }
+    .sync-dot.offline { background: var(--red); }
+
+    /* ── TRAINER SELECTOR ─────────────────────────────────────── */
+    #trainer-bar {
+      padding: 10px 16px; background: #0d1620; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    #trainer-bar label { font-size: 11px; color: var(--sub); flex-shrink: 0; }
+    #trainer-select {
+      flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px;
+      color: var(--text); font-size: 13px; font-weight: 600; padding: 7px 10px; outline: none;
+    }
+    #trainer-select:focus { border-color: var(--blue); }
+    #date-display {
+      font-size: 11px; color: var(--sub); flex-shrink: 0;
+      background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 10px;
+    }
+
+    /* ── TABS ──────────────────────────────────────────────────── */
+    #tabs {
+      display: flex; background: #0d1620; border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1; padding: 10px; font-size: 12px; font-weight: 600; text-align: center;
+      color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s;
+    }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* ── CONTENT ───────────────────────────────────────────────── */
+    .tab-content { display: none; padding: 14px 16px; }
+    .tab-content.active { display: block; }
+
+    /* ── SUMMARY STATS ─────────────────────────────────────────── */
+    #summary-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .stat-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 10px; text-align: center; cursor: pointer; transition: border-color .2s;
+    }
+    .stat-card:hover { border-color: var(--border2); }
+    .stat-card .val { font-size: 26px; font-weight: 700; }
+    .stat-card .lbl { font-size: 10px; color: var(--sub); margin-top: 3px; line-height: 1.3; }
+    .stat-card .unit { font-size: 11px; color: var(--sub); }
+
+    /* ── SECTION HEADER ────────────────────────────────────────── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+    }
+    .section-title { font-size: 12px; font-weight: 700; color: var(--sub); text-transform: uppercase; letter-spacing: .8px; }
+
+    /* ── ADD BUTTON ────────────────────────────────────────────── */
+    .btn-add {
+      background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px;
+      color: var(--blue); font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer; transition: all .2s;
+    }
+    .btn-add:hover { background: #1e3a60; }
+
+    /* ── FLYER ENTRY CARD ──────────────────────────────────────── */
+    .flyer-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 14px; margin-bottom: 8px; position: relative;
+    }
+    .flyer-card-header { display: flex; align-items: flex-start; gap: 10px; }
+    .flyer-type-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .flyer-card-body { flex: 1; min-width: 0; }
+    .flyer-address { font-size: 13px; font-weight: 700; color: var(--text); }
+    .flyer-detail  { font-size: 11px; color: var(--sub); margin-top: 2px; }
+    .flyer-time    { font-size: 11px; color: var(--orange); font-weight: 600; }
+    .flyer-notes   { font-size: 11px; color: var(--sub); margin-top: 4px; font-style: italic; }
+    .flyer-delete  {
+      background: transparent; border: none; color: var(--border2); font-size: 16px;
+      cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: all .15s; flex-shrink: 0;
+    }
+    .flyer-delete:hover { color: var(--red); background: #2a1515; }
+    .flyer-type-badge {
+      display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px;
+      border-radius: 20px; margin-top: 4px;
+    }
+    .type-buzones { background: #1a3a60; color: var(--blue); }
+    .type-local   { background: #1a3a20; color: var(--green); }
+    .type-cotxe   { background: #2a3a10; color: #a0c040; }
+    .type-metro   { background: #3a1a50; color: var(--purple); }
+    .type-moto    { background: #2a2a10; color: #d0c040; }
+
+    /* ── EMPTY STATE ───────────────────────────────────────────── */
+    .empty {
+      text-align: center; padding: 30px 0; color: var(--sub); font-size: 13px;
+    }
+    .empty-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+
+    /* ── MODAL ─────────────────────────────────────────────────── */
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 500;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    #modal-overlay.hidden { display: none; }
+    #modal-box {
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: 18px 18px 0 0; width: 100%; max-width: 520px;
+      padding: 20px 18px 32px; max-height: 92vh; overflow-y: auto;
+    }
+    #modal-box h3 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+
+    .form-row { margin-bottom: 12px; }
+    .form-row label { font-size: 11px; color: var(--sub); display: block; margin-bottom: 4px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: 10px; color: var(--text); font-size: 13px; padding: 10px 12px; outline: none;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--blue); }
+    .form-textarea { resize: none; height: 72px; font-family: inherit; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+
+    .btn-primary {
+      width: 100%; padding: 13px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg,#1e4a7c,#1a3a60); color: #cce4ff;
+      font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 6px; transition: all .2s;
+    }
+    .btn-primary:hover { background: linear-gradient(135deg,#2a5a8c,#1e4a7c); }
+    .btn-cancel {
+      width: 100%; padding: 11px; border-radius: 12px; border: 1px solid var(--border2);
+      background: transparent; color: var(--sub); font-size: 13px; cursor: pointer; margin-top: 8px;
+    }
+
+    /* ── STAT EDIT MODAL ───────────────────────────────────────── */
+    #stat-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 500;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #stat-modal-overlay.hidden { display: none; }
+    #stat-modal-box {
+      background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px;
+      width: 100%; max-width: 320px; padding: 22px 20px;
+    }
+    #stat-modal-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+    .big-input-wrap { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 16px 0; }
+    .big-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border2);
+      background: var(--bg3); color: var(--text); font-size: 22px; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .big-btn:hover { background: var(--border2); }
+    #stat-value-display { font-size: 38px; font-weight: 700; min-width: 70px; text-align: center; }
+    #stat-unit { font-size: 13px; color: var(--sub); text-align: center; margin-bottom: 14px; }
+
+    /* ── HISTORY TAB ────────────────────────────────────────────── */
+    .history-day {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .history-day-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; cursor: pointer;
+    }
+    .history-day-header:hover { background: var(--bg3); }
+    .history-date { font-size: 13px; font-weight: 700; color: var(--text); }
+    .history-badges { display: flex; gap: 6px; }
+    .h-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .h-flyers  { background: #1a3a60; color: var(--blue); }
+    .h-leads   { background: #2e1e06; color: var(--orange); }
+    .h-conv    { background: #0e2e1e; color: var(--green); }
+    .h-hours   { background: #1a2840; color: var(--sub); }
+    .history-body { padding: 0 14px 12px; display: none; }
+    .history-body.open { display: block; }
+    .history-flyer-item {
+      font-size: 11px; color: var(--sub); padding: 4px 0;
+      border-top: 1px solid var(--border); display: flex; gap: 8px;
+    }
+    .history-flyer-item:first-child { border-top: none; }
+
+    /* ── TEAM TAB ───────────────────────────────────────────────── */
+    .team-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px; margin-bottom: 10px;
+    }
+    .team-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .team-avatar {
+      width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .team-name { font-size: 14px; font-weight: 700; }
+    .team-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+    .team-stat { text-align: center; background: var(--bg3); border-radius: 8px; padding: 7px 4px; }
+    .team-stat .tv { font-size: 17px; font-weight: 700; }
+    .team-stat .tl { font-size: 9px; color: var(--sub); margin-top: 1px; }
+    .team-flyer-list { margin-top: 10px; }
+    .team-flyer-row {
+      font-size: 11px; color: var(--sub); padding: 4px 0; border-top: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+
+    /* ── TOAST ──────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1a3a2a; border: 1px solid var(--green); color: var(--green);
+      padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      opacity: 0; transition: opacity .3s; z-index: 9999; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── SETUP BANNER ───────────────────────────────────────────── */
+    #setup-banner {
+      background: #2e1e06; border: 1px solid var(--orange); border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 14px; font-size: 12px; color: var(--orange);
+    }
+    #setup-banner a { color: var(--orange); font-weight: 700; }
+    #setup-banner.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── TOP BAR ────────────────────────────────────────────────────── -->
+<div id="topbar">
+  <h1>📋 Captación de Clientes Teodora Lamadrid</h1>
+  <div id="topbar-sub">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-label">Conectando…</span>
+  </div>
+</div>
+
+<!-- ── TRAINER + DATE ─────────────────────────────────────────────── -->
+<div id="trainer-bar">
+  <label>Entrenador:</label>
+  <select id="trainer-select" onchange="onTrainerChange()">
+    <option value="">— Seleccionar —</option>
+  </select>
+  <div id="date-display"></div>
+</div>
+
+<!-- ── TABS ───────────────────────────────────────────────────────── -->
+<div id="tabs">
+  <div class="tab active" data-tab="avui">Hoy</div>
+  <div class="tab" data-tab="historial">Historial</div>
+  <div class="tab" data-tab="equip">Equipo</div>
+</div>
+
+<!-- ══ TAB: AVUI ══════════════════════════════════════════════════── -->
+<div id="tab-avui" class="tab-content active">
+
+  <!-- Stats -->
+  <div id="summary-stats">
+    <div class="stat-card" onclick="openStatModal('hours')">
+      <div class="val" id="stat-hours" style="color:var(--blue)">0<span style="font-size:14px">h</span></div>
+      <div class="lbl" id="stat-hours-range" style="color:var(--sub);font-size:10px;margin-top:2px">Toca para editar</div>
+      <div class="lbl">Horas<br>dedicadas</div>
+    </div>
+    <div class="stat-card" onclick="openStatModal('leads')">
+      <div class="val" id="stat-leads" style="color:var(--orange)">0</div>
+      <div class="lbl">Pruebas<br>Agendadas</div>
+    </div>
+    <div class="stat-card" onclick="openStatModal('conversions')">
+      <div class="val" id="stat-conv" style="color:var(--green)">0</div>
+      <div class="lbl">Socios<br>domiciliados</div>
+    </div>
+  </div>
+
+  <!-- Flyer entries -->
+  <div class="section-header">
+    <span class="section-title">📬 Flyers entregados hoy</span>
+    <button class="btn-add" onclick="openFlyerModal()">+ Añadir</button>
+  </div>
+  <div id="flyer-list"></div>
+
+</div>
+
+<!-- ══ TAB: HISTORIAL ════════════════════════════════════════════════ -->
+<div id="tab-historial" class="tab-content">
+  <div id="history-list"></div>
+</div>
+
+<!-- ══ TAB: EQUIP ════════════════════════════════════════════════════ -->
+<div id="tab-equip" class="tab-content">
+  <div id="team-list"></div>
+</div>
+
+<!-- ══ MODAL: AFEGIR FLYER ══════════════════════════════════════════ -->
+<div id="modal-overlay" class="hidden">
+  <div id="modal-box">
+    <h3>📬 Registrar distribución</h3>
+
+    <div class="form-row">
+      <label>Tipo de punto</label>
+      <select class="form-select" id="f-type">
+        <option value="buzones">📬 Buzones / Portería</option>
+        <option value="local">🏪 Local comercial</option>
+        <option value="cotxe">🚗 Coche (parabrisas)</option>
+        <option value="moto">🛵 Moto / Bicicleta</option>
+        <option value="metro">🚇 Metro / Bus (entrada)</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label>Dirección (calle + número)</label>
+      <input class="form-input" id="f-address" placeholder="Ej: Carrer de Balmes, 45" />
+    </div>
+
+    <div class="form-row-2">
+      <div>
+        <label>Portal / Escalera</label>
+        <input class="form-input" id="f-portal" placeholder="Ej: Portal A, Esc. 2" />
+      </div>
+      <div>
+        <label>Piso / Local</label>
+        <input class="form-input" id="f-floor" placeholder="Ej: 3º 2ª, Bj. Local" />
+      </div>
+    </div>
+
+    <div class="form-row-2">
+      <div>
+        <label>Hora</label>
+        <input class="form-input" id="f-time" type="time" />
+      </div>
+      <div>
+        <label>Nº flyers entregados</label>
+        <input class="form-input" id="f-qty" type="number" min="1" value="1" placeholder="1" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Notas (opcional)</label>
+      <textarea class="form-textarea" id="f-notes" placeholder="Ej: no había portero, dejé bajo puerta; edificio 8 plantas..."></textarea>
+    </div>
+
+    <button class="btn-primary" onclick="saveFlyerEntry()">Guardar entrada</button>
+    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: EDITAR STAT ═══════════════════════════════════════════ -->
+<div id="stat-modal-overlay" class="hidden">
+  <div id="stat-modal-box">
+    <h3 id="stat-modal-title"></h3>
+
+    <!-- Franja horària (només per hores) -->
+    <div id="stat-time-range" class="hidden">
+      <div class="form-row-2" style="margin-bottom:10px">
+        <div>
+          <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">De</label>
+          <input class="form-input" id="stat-time-from" type="time" oninput="calcHours()" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">A</label>
+          <input class="form-input" id="stat-time-to" type="time" oninput="calcHours()" />
+        </div>
+      </div>
+      <div id="hours-calc" style="text-align:center;font-size:32px;font-weight:700;color:var(--blue);margin:10px 0 4px"></div>
+      <div style="text-align:center;font-size:11px;color:var(--sub);margin-bottom:10px">horas trabajadas</div>
+    </div>
+
+    <!-- Comptador (leads i conversions) -->
+    <div id="stat-counter" class="hidden">
+      <div class="big-input-wrap">
+        <button class="big-btn" onclick="adjustStat(-1)">−</button>
+        <div id="stat-value-display">0</div>
+        <button class="big-btn" onclick="adjustStat(+1)">+</button>
+      </div>
+      <div id="stat-unit"></div>
+    </div>
+
+    <button class="btn-primary" onclick="saveStatModal()">Guardar</button>
+    <button class="btn-cancel" onclick="closeStatModal()">Cancelar</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+
+// ═══════════════════════════════════════════════════════════════════
+//  EQUIP — ha de coincidir amb flyers_bonanova.html
+// ═══════════════════════════════════════════════════════════════════
+const TEAM = [
+  { id:"aleix",   name:"Aleix",   color:"#3ecf8e", bg:"#0e2e1e" },
+  { id:"guillem", name:"Guillem", color:"#f5a623", bg:"#2e1e06" },
+  { id:"cristina",name:"Cristina",color:"#b87af5", bg:"#22103a" },
+];
+
+const TYPE_ICONS  = { buzones:"📬", local:"🏪", cotxe:"🚗", moto:"🛵", metro:"🚇" };
+const TYPE_LABELS = { buzones:"Buzones/Portería", local:"Local comercial", cotxe:"Coche", moto:"Moto/Bicicleta", metro:"Metro/Bus" };
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+const CFG_KEY = "flyers_firebase_cfg";
+
+let db            = null;
+let currentTrainer = "";
+let todayKey       = "";
+let todayData      = { summary: { timeFrom:"", timeTo:"", hours:0, leads:0, conversions:0 }, flyers:{} };
+let allReports     = {};   // { dateKey: { trainerId: { summary, flyers } } }
+
+let statModalKey   = "";
+let statModalVal   = 0;
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+function todayStr() {
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+function formatDate(key) {
+  const [y,m,d] = key.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  todayKey = todayStr();
+  document.getElementById("date-display").textContent = formatDate(todayKey);
+
+  // populate trainer select
+  const sel = document.getElementById("trainer-select");
+  TEAM.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  });
+
+  // restore last trainer
+  const saved = localStorage.getItem("tracker_trainer");
+  if (saved) { sel.value = saved; currentTrainer = saved; }
+
+  // tabs
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
+      if (tab.dataset.tab === "historial") renderHistory();
+      if (tab.dataset.tab === "equip")     renderTeam();
+      // update tab label language
+
+    });
+  });
+
+  // default time = now
+  const now = new Date();
+  document.getElementById("f-time").value =
+    String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+
+  initFirebase();
+});
+
+function initFirebase() {
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    if (!raw) throw new Error("no cfg");
+    const cfg = JSON.parse(raw);
+    if (cfg.local || !cfg.databaseURL || cfg.databaseURL.startsWith("YOUR")) throw new Error("local");
+
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.database();
+
+    firebase.database().ref(".info/connected").on("value", snap => {
+      setSyncStatus(snap.val() ? "online" : "offline");
+    });
+
+    // escuchar todos los reports
+    db.ref("reports").on("value", snap => {
+      allReports = snap.val() || {};
+      refreshTodayData();
+      renderAll();
+    });
+
+  } catch(e) {
+    db = null;
+    setSyncStatus("local");
+    refreshTodayData();
+    renderAll();
+  }
+}
+
+function refreshTodayData() {
+  if (currentTrainer && allReports[todayKey] && allReports[todayKey][currentTrainer]) {
+    todayData = allReports[todayKey][currentTrainer];
+  } else {
+    todayData = { summary: { timeFrom:"", timeTo:"", hours:0, leads:0, conversions:0 }, flyers:{} };
+  }
+}
+
+function onTrainerChange() {
+  currentTrainer = document.getElementById("trainer-select").value;
+  localStorage.setItem("tracker_trainer", currentTrainer);
+  refreshTodayData();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderStats();
+  renderFlyerList();
+}
+
+function renderStats() {
+  const s = todayData.summary || {};
+  const h = s.hours || 0;
+  document.getElementById("stat-hours").innerHTML = h + '<span style="font-size:14px">h</span>';
+  document.getElementById("stat-hours-range").textContent =
+    (s.timeFrom && s.timeTo) ? `${s.timeFrom} – ${s.timeTo}` : "Toca para editar";
+  document.getElementById("stat-leads").textContent = s.leads || 0;
+  document.getElementById("stat-conv").textContent  = s.conversions || 0;
+}
+
+function renderFlyerList() {
+  const container = document.getElementById("flyer-list");
+  const flyers = todayData.flyers || {};
+  const entries = Object.entries(flyers).sort((a,b) => (a[1].time||"").localeCompare(b[1].time||""));
+
+  if (!entries.length) {
+    container.innerHTML = `<div class="empty"><span class="empty-icon">📬</span>Sin entradas todavía.<br>Toca "+ Añadir" para registrar el primer punto.</div>`;
+    return;
+  }
+
+  container.innerHTML = entries.map(([key, f]) => `
+    <div class="flyer-card">
+      <div class="flyer-card-header">
+        <div class="flyer-type-icon">${TYPE_ICONS[f.type]||"📍"}</div>
+        <div class="flyer-card-body">
+          <div class="flyer-address">${f.address || "Sin dirección"}</div>
+          <div class="flyer-detail">
+            ${f.portal ? `<strong>${f.portal}</strong>` : ""}
+            ${f.floor  ? ` · ${f.floor}` : ""}
+            ${f.qty > 1 ? ` · <strong>${f.qty} flyers</strong>` : ""}
+          </div>
+          <span class="flyer-type-badge type-${f.type}">${TYPE_LABELS[f.type]||f.type}</span>
+          ${f.time ? `<span class="flyer-time"> · ⏱ ${f.time}</span>` : ""}
+          ${f.notes ? `<div class="flyer-notes">"${f.notes}"</div>` : ""}
+        </div>
+        <button class="flyer-delete" onclick="deleteFlyerEntry('${key}')">×</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+// ── HISTORY ────────────────────────────────────────────────────────
+function renderHistory() {
+  const container = document.getElementById("history-list");
+  if (!currentTrainer) {
+    container.innerHTML = `<div class="empty"><span class="empty-icon">👆</span>Selecciona un entrenador.</div>`;
+    return;
+  }
+  const days = Object.keys(allReports)
+    .filter(d => allReports[d][currentTrainer])
+    .sort((a,b) => b.localeCompare(a));
+
+  if (!days.length) {
+    container.innerHTML = `<div class="empty"><span class="empty-icon">📅</span>Sin historial todavía.</div>`;
+    return;
+  }
+
+  container.innerHTML = days.map(day => {
+    const data = allReports[day][currentTrainer] || {};
+    const s = data.summary || {};
+    const flyers = Object.values(data.flyers || {});
+    const totalFlyers = flyers.reduce((acc,f) => acc + (parseInt(f.qty)||1), 0);
+    const isToday = day === todayKey;
+
+    return `<div class="history-day">
+      <div class="history-day-header" onclick="toggleHistoryDay(this)">
+        <div class="history-date">${formatDate(day)}${isToday?" <span style='font-size:10px;color:var(--blue)'>· hoy</span>":""}</div>
+        <div class="history-badges">
+          ${totalFlyers ? `<span class="h-badge h-flyers">${totalFlyers} flyers</span>` : ""}
+          ${s.leads     ? `<span class="h-badge h-leads">${s.leads} pruebas</span>` : ""}
+          ${s.conversions?`<span class="h-badge h-conv">${s.conversions} socios</span>` : ""}
+          ${s.hours     ? `<span class="h-badge h-hours">${s.hours}h${s.timeFrom&&s.timeTo?` (${s.timeFrom}–${s.timeTo})`:""}</span>` : ""}
+        </div>
+      </div>
+      <div class="history-body">
+        ${flyers.length ? flyers.sort((a,b)=>(a.time||"").localeCompare(b.time||"")).map(f => `
+          <div class="history-flyer-item">
+            <span>${TYPE_ICONS[f.type]||"📍"}</span>
+            <span><strong>${f.address||""}</strong>${f.portal?` · ${f.portal}`:""}${f.floor?` · ${f.floor}`:""}${f.time?` <span style="color:var(--orange)">⏱${f.time}</span>`:""} ${f.qty>1?`· ${f.qty}u`:""}${f.notes?`<br><em style="opacity:.7">${f.notes}</em>`:""}</span>
+          </div>`).join("") : "<div style='font-size:11px;color:var(--sub);padding:6px 0'>Sin detalles de flyers.</div>"}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleHistoryDay(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle("open");
+}
+
+// ── TEAM VIEW ──────────────────────────────────────────────────────
+function renderTeam() {
+  const container = document.getElementById("team-list");
+  const todayAll  = allReports[todayKey] || {};
+
+  if (!Object.keys(todayAll).length) {
+    container.innerHTML = `<div class="empty"><span class="empty-icon">👥</span>Sin actividad registrada hoy.</div>`;
+    return;
+  }
+
+  container.innerHTML = TEAM.map(t => {
+    const data = todayAll[t.id];
+    if (!data) return "";
+    const s = data.summary || {};
+    const flyers = Object.values(data.flyers || {});
+    const totalFlyers = flyers.reduce((acc,f) => acc+(parseInt(f.qty)||1), 0);
+
+    return `<div class="team-card">
+      <div class="team-card-header">
+        <div class="team-avatar" style="background:${t.bg};color:${t.color}">${t.name[0]}</div>
+        <div class="team-name" style="color:${t.color}">${t.name}</div>
+      </div>
+      <div class="team-stats">
+        <div class="team-stat"><div class="tv" style="color:var(--blue)">${s.hours||0}<span style="font-size:12px">h</span></div><div class="tl">${s.timeFrom&&s.timeTo?`${s.timeFrom}–${s.timeTo}`:"Horas"}</div></div>
+        <div class="team-stat"><div class="tv" style="color:var(--blue)">${totalFlyers}</div><div class="tl">Flyers</div></div>
+        <div class="team-stat"><div class="tv" style="color:var(--orange)">${s.leads||0}</div><div class="tl">Pruebas</div></div>
+        <div class="team-stat"><div class="tv" style="color:var(--green)">${s.conversions||0}</div><div class="tl">Socios</div></div>
+      </div>
+      ${flyers.length ? `<div class="team-flyer-list">${
+        flyers.sort((a,b)=>(a.time||"").localeCompare(b.time||"")).map(f =>
+          `<div class="team-flyer-row"><span>${TYPE_ICONS[f.type]||"📍"}</span><span>${f.address||""}${f.portal?` · ${f.portal}`:""}${f.floor?` · ${f.floor}`:""}${f.time?` <span style="color:var(--orange)">⏱${f.time}</span>`:""}</span></div>`
+        ).join("")
+      }</div>` : ""}
+    </div>`;
+  }).filter(Boolean).join("") || `<div class="empty"><span class="empty-icon">👥</span>Sin actividad hoy.</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  WRITE HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function writeSummary(data) {
+  if (!currentTrainer) return;
+  const path = `reports/${todayKey}/${currentTrainer}/summary`;
+  if (!allReports[todayKey]) allReports[todayKey] = {};
+  if (!allReports[todayKey][currentTrainer]) allReports[todayKey][currentTrainer] = { summary:{}, flyers:{} };
+  allReports[todayKey][currentTrainer].summary = Object.assign(
+    allReports[todayKey][currentTrainer].summary || {}, data
+  );
+  if (db) db.ref(path).update(data);
+  refreshTodayData();
+  renderAll();
+}
+
+function writeFlyer(entry) {
+  if (!currentTrainer) return;
+  const path = `reports/${todayKey}/${currentTrainer}/flyers`;
+  if (db) {
+    db.ref(path).push(entry);
+  } else {
+    if (!allReports[todayKey]) allReports[todayKey] = {};
+    if (!allReports[todayKey][currentTrainer]) allReports[todayKey][currentTrainer] = { summary:{}, flyers:{} };
+    const key = "local_" + Date.now();
+    allReports[todayKey][currentTrainer].flyers[key] = entry;
+    refreshTodayData();
+    renderAll();
+  }
+}
+
+function deleteFlyer(key) {
+  if (!currentTrainer) return;
+  const path = `reports/${todayKey}/${currentTrainer}/flyers/${key}`;
+  if (db) {
+    db.ref(path).remove();
+  } else {
+    delete allReports[todayKey][currentTrainer].flyers[key];
+    refreshTodayData();
+    renderAll();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FLYER MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openFlyerModal() {
+  if (!currentTrainer) { showToast("Selecciona primero un entrenador"); return; }
+  // reset time to now
+  const now = new Date();
+  document.getElementById("f-time").value =
+    String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+  document.getElementById("modal-overlay").classList.remove("hidden");
+  setTimeout(() => document.getElementById("f-address").focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").classList.add("hidden");
+}
+
+function saveFlyerEntry() {
+  const address = document.getElementById("f-address").value.trim();
+  if (!address) { document.getElementById("f-address").focus(); showToast("Introduce la dirección"); return; }
+
+  const entry = {
+    type:    document.getElementById("f-type").value,
+    address,
+    portal:  document.getElementById("f-portal").value.trim(),
+    floor:   document.getElementById("f-floor").value.trim(),
+    time:    document.getElementById("f-time").value,
+    qty:     parseInt(document.getElementById("f-qty").value) || 1,
+    notes:   document.getElementById("f-notes").value.trim(),
+    createdAt: Date.now(),
+  };
+
+  writeFlyer(entry);
+  closeModal();
+  clearFlyerForm();
+  showToast("✓ Entrada guardada");
+}
+
+function clearFlyerForm() {
+  document.getElementById("f-address").value = "";
+  document.getElementById("f-portal").value  = "";
+  document.getElementById("f-floor").value   = "";
+  document.getElementById("f-notes").value   = "";
+  document.getElementById("f-qty").value     = "1";
+  document.getElementById("f-type").value    = "buzones";
+}
+
+function deleteFlyerEntry(key) {
+  if (!confirm("¿Eliminar esta entrada?")) return;
+  deleteFlyer(key);
+  showToast("Entrada eliminada");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STAT MODAL
+// ═══════════════════════════════════════════════════════════════════
+const STAT_CONFIG = {
+  leads:       { title:"🎯 Pruebas Agendadas", unit:"pruebas agendadas", min:0, max:99, step:1 },
+  conversions: { title:"🏆 Socios domiciliados", unit:"socios convertidos", min:0, max:99, step:1 },
+};
+
+function openStatModal(key) {
+  if (!currentTrainer) { showToast("Selecciona primero un entrenador"); return; }
+  statModalKey = key;
+  const isHours = key === "hours";
+
+  document.getElementById("stat-time-range").classList.toggle("hidden", !isHours);
+  document.getElementById("stat-counter").classList.toggle("hidden", isHours);
+
+  if (isHours) {
+    document.getElementById("stat-modal-title").textContent = "⏱ Horas dedicadas";
+    const s = todayData.summary || {};
+    document.getElementById("stat-time-from").value = s.timeFrom || "";
+    document.getElementById("stat-time-to").value   = s.timeTo   || "";
+    calcHours();
+  } else {
+    const cfg = STAT_CONFIG[key];
+    document.getElementById("stat-modal-title").textContent    = cfg.title;
+    document.getElementById("stat-unit").textContent           = cfg.unit;
+    statModalVal = (todayData.summary || {})[key] || 0;
+    document.getElementById("stat-value-display").textContent  = statModalVal;
+  }
+
+  document.getElementById("stat-modal-overlay").classList.remove("hidden");
+}
+
+function calcHours() {
+  const from = document.getElementById("stat-time-from").value;
+  const to   = document.getElementById("stat-time-to").value;
+  const el   = document.getElementById("hours-calc");
+  if (!from || !to) { el.textContent = "–"; return; }
+  const [fh, fm] = from.split(":").map(Number);
+  const [th, tm] = to.split(":").map(Number);
+  let mins = (th * 60 + tm) - (fh * 60 + fm);
+  if (mins < 0) mins += 24 * 60;
+  el.textContent = (mins / 60).toFixed(1) + "h";
+}
+
+function adjustStat(delta) {
+  const cfg = STAT_CONFIG[statModalKey];
+  statModalVal = Math.max(cfg.min, Math.min(cfg.max, statModalVal + (cfg.step || 1) * delta));
+  statModalVal = Math.round(statModalVal * 10) / 10;
+  document.getElementById("stat-value-display").textContent = statModalVal;
+}
+
+function saveStatModal() {
+  if (statModalKey === "hours") {
+    const from = document.getElementById("stat-time-from").value;
+    const to   = document.getElementById("stat-time-to").value;
+    let hours  = 0;
+    if (from && to) {
+      const [fh, fm] = from.split(":").map(Number);
+      const [th, tm] = to.split(":").map(Number);
+      let mins = (th * 60 + tm) - (fh * 60 + fm);
+      if (mins < 0) mins += 24 * 60;
+      hours = Math.round(mins / 60 * 10) / 10;
+    }
+    writeSummary({ timeFrom: from, timeTo: to, hours });
+  } else {
+    writeSummary({ [statModalKey]: statModalVal });
+  }
+  closeStatModal();
+  showToast("✓ Guardado");
+}
+
+function closeStatModal() {
+  document.getElementById("stat-modal-overlay").classList.add("hidden");
+}
+
+// click outside modals
+document.getElementById("modal-overlay").addEventListener("click", e => {
+  if (e.target === document.getElementById("modal-overlay")) closeModal();
+});
+document.getElementById("stat-modal-overlay").addEventListener("click", e => {
+  if (e.target === document.getElementById("stat-modal-overlay")) closeStatModal();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  SYNC STATUS
+// ═══════════════════════════════════════════════════════════════════
+function setSyncStatus(s) {
+  const dot   = document.getElementById("sync-dot");
+  const label = document.getElementById("sync-label");
+  dot.className = "sync-dot";
+  if (s === "online")  { dot.classList.add("online");  label.textContent = "Sincronizado en tiempo real"; }
+  else if (s==="offline") { dot.classList.add("offline"); label.textContent = "Sin conexión"; }
+  else                 {                                label.textContent = "Modo local"; }
+}
+
+// ── toast ──────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+</script>
+</body>
+</html>
