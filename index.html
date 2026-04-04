@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Captación de Clientes — Teodora Lamadrid</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0f1923; color: #e8edf2;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    h1 { font-size: 18px; font-weight: 700; color: #e2f0ff; text-align: center; margin-bottom: 6px; }
+    p  { font-size: 12px; color: #7a9ab5; text-align: center; margin-bottom: 32px; }
+    .cards { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 340px; }
+    a.card {
+      display: flex; align-items: center; gap: 16px;
+      background: #161f2b; border: 1px solid #2a4060; border-radius: 14px;
+      padding: 20px 22px; text-decoration: none; transition: all .2s;
+    }
+    a.card:hover { border-color: #3a88d8; background: #1a2840; }
+    .card-icon { font-size: 32px; flex-shrink: 0; }
+    .card-text h2 { font-size: 15px; font-weight: 700; color: #e2f0ff; margin-bottom: 4px; }
+    .card-text p  { font-size: 11px; color: #7a9ab5; margin: 0; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>💪 Captación de Clientes</h1>
+  <p>Teodora Lamadrid 27, 08022 Barcelona</p>
+  <div class="cards">
+    <a class="card" href="flyers_bonanova.html">
+      <div class="card-icon">🗺️</div>
+      <div class="card-text">
+        <h2>Mapa de distribución</h2>
+        <p>Zonas de reparto, asignación por entrenador y seguimiento en tiempo real</p>
+      </div>
+    </a>
+    <a class="card" href="tracker_bonanova.html">
+      <div class="card-icon">📋</div>
+      <div class="card-text">
+        <h2>Tracker diario</h2>
+        <p>Registra flyers entregados, horas, pruebas agendadas y socios convertidos</p>
+      </div>
+    </a>
+  </div>
+</body>
+</html>
