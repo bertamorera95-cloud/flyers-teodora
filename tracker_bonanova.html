@@ -27,8 +27,11 @@
       background: #0d1620; border-bottom: 1px solid var(--border);
       padding: 12px 16px; position: sticky; top: 0; z-index: 100;
     }
+    #topbar { display: flex; align-items: flex-start; justify-content: space-between; }
+    #topbar-left { flex: 1; }
     #topbar h1 { font-size: 14px; font-weight: 700; color: #e2f0ff; }
     #topbar-sub { font-size: 11px; color: var(--sub); margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+    #btn-settings { background: transparent; border: none; color: var(--sub); font-size: 18px; cursor: pointer; padding: 2px 0 0 8px; flex-shrink: 0; }
     .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sub); display: inline-block; }
     .sync-dot.online { background: var(--green); box-shadow: 0 0 5px #3ecf8e88; }
     .sync-dot.offline { background: var(--red); }
@@ -232,24 +235,58 @@
     }
     #toast.show { opacity: 1; }
 
-    /* ── SETUP BANNER ───────────────────────────────────────────── */
-    #setup-banner {
-      background: #2e1e06; border: 1px solid var(--orange); border-radius: 10px;
-      padding: 12px 14px; margin-bottom: 14px; font-size: 12px; color: var(--orange);
+    /* ── SETUP MODAL ───────────────────────────────────────────── */
+    #setup-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 9000;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
     }
-    #setup-banner a { color: var(--orange); font-weight: 700; }
-    #setup-banner.hidden { display: none; }
+    #setup-overlay.hidden { display: none; }
+    #setup-box {
+      background: #161f2b; border: 1px solid #2a4060; border-radius: 14px;
+      width: 100%; max-width: 480px; padding: 24px 20px; max-height: 90vh; overflow-y: auto;
+    }
+    #setup-box h2 { font-size: 16px; color: #e2f0ff; margin-bottom: 6px; }
+    #setup-box .sub { font-size: 12px; color: #7a9ab5; margin-bottom: 18px; line-height: 1.6; }
+    .setup-step {
+      background: #0d1620; border-radius: 10px; padding: 12px 14px;
+      margin-bottom: 10px; border-left: 3px solid #3a88d8;
+    }
+    .setup-step .step-num { font-size: 10px; font-weight: 700; color: #3a88d8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .setup-step p { font-size: 12px; color: #a0bdd0; line-height: 1.6; }
+    .setup-step a { color: #69b8f7; }
+    .setup-step code { background: #1a2840; padding: 1px 5px; border-radius: 4px; font-size: 11px; color: #b87af5; }
+    .setup-label { font-size: 11px; color: #7a9ab5; display: block; margin: 8px 0 3px; }
+    .setup-input {
+      width: 100%; background: #1a2840; border: 1px solid #2a4060; border-radius: 8px;
+      padding: 9px 11px; color: #e8edf2; font-size: 12px; outline: none;
+    }
+    .setup-input:focus { border-color: #3a88d8; }
+    .setup-input.err   { border-color: #f07070; }
+    .setup-err { font-size: 11px; color: #f07070; margin-top: 6px; display: none; }
+    #btn-setup-save {
+      width: 100%; margin-top: 14px; padding: 13px; border-radius: 10px; border: none;
+      background: linear-gradient(135deg,#1e4a7c,#1a3a60); color: #cce4ff;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .setup-or { text-align: center; font-size: 11px; color: #4a7a9b; margin: 10px 0; }
+    #btn-setup-local {
+      width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #2a4060;
+      background: transparent; color: #7a9ab5; font-size: 12px; cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
 <!-- ── TOP BAR ────────────────────────────────────────────────────── -->
 <div id="topbar">
-  <h1>📋 Captación de Clientes Teodora Lamadrid</h1>
-  <div id="topbar-sub">
-    <span class="sync-dot" id="sync-dot"></span>
-    <span id="sync-label">Conectando…</span>
+  <div id="topbar-left">
+    <h1>📋 Captación de Clientes Teodora Lamadrid</h1>
+    <div id="topbar-sub">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">Conectando…</span>
+    </div>
   </div>
+  <button id="btn-settings" onclick="openSetup()" title="Configuración Firebase">⚙️</button>
 </div>
 
 <!-- ── TRAINER + DATE ─────────────────────────────────────────────── -->
@@ -386,6 +423,32 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- ══ SETUP MODAL ══════════════════════════════════════════════════ -->
+<div id="setup-overlay" class="hidden">
+  <div id="setup-box">
+    <h2>⚙️ Configuración Firebase</h2>
+    <p class="sub">Introduce los datos de conexión que te ha facilitado el administrador para sincronizar en tiempo real con el resto del equipo.</p>
+
+    <div class="setup-step">
+      <div class="step-num">Datos de conexión</div>
+      <p>Copia los valores del <code>firebaseConfig</code> que te han enviado.</p>
+      <label class="setup-label">apiKey</label>
+      <input class="setup-input" id="cfg-apiKey" placeholder="AIzaSy..." />
+      <label class="setup-label">databaseURL</label>
+      <input class="setup-input" id="cfg-databaseURL" placeholder="https://tu-proyecto-default-rtdb.europe-west1.firebasedatabase.app" />
+      <label class="setup-label">projectId</label>
+      <input class="setup-input" id="cfg-projectId" placeholder="tu-proyecto" />
+      <label class="setup-label">appId</label>
+      <input class="setup-input" id="cfg-appId" placeholder="1:123456789:web:abc..." />
+      <div class="setup-err" id="setup-err">Rellena al menos apiKey, databaseURL y projectId.</div>
+    </div>
+
+    <button id="btn-setup-save" onclick="saveSetup()">Guardar y conectar →</button>
+    <div class="setup-or">— o —</div>
+    <button id="btn-setup-local" onclick="useLocalMode()">Usar en modo local (solo este dispositivo)</button>
+  </div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -533,10 +596,81 @@ function initFirebase() {
 
   } catch(e) {
     db = null;
-    setSyncStatus("local");
     refreshTodayData();
     renderAll();
+    openSetup();
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SETUP MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openSetup() {
+  document.getElementById("setup-overlay").classList.remove("hidden");
+}
+
+function saveSetup() {
+  const apiKey      = document.getElementById("cfg-apiKey").value.trim();
+  const databaseURL = document.getElementById("cfg-databaseURL").value.trim();
+  const projectId   = document.getElementById("cfg-projectId").value.trim();
+  const appId       = document.getElementById("cfg-appId").value.trim();
+
+  const err = document.getElementById("setup-err");
+  if (!apiKey || !databaseURL || !projectId) {
+    err.style.display = "block";
+    ["cfg-apiKey","cfg-databaseURL","cfg-projectId"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) el.classList.add("err");
+    });
+    return;
+  }
+  err.style.display = "none";
+  ["cfg-apiKey","cfg-databaseURL","cfg-projectId","cfg-appId"].forEach(id => {
+    document.getElementById(id).classList.remove("err");
+  });
+
+  const cfg = { apiKey, databaseURL, projectId, appId,
+    authDomain: projectId + ".firebaseapp.com",
+    storageBucket: projectId + ".appspot.com",
+    messagingSenderId: "" };
+
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  document.getElementById("setup-overlay").classList.add("hidden");
+
+  // Re-init with new config
+  if (!firebase.apps.length) firebase.initializeApp(cfg);
+  db = firebase.database();
+
+  firebase.database().ref(".info/connected").on("value", snap => {
+    if (snap.val()) {
+      db.ref("_ping").set({ t: Date.now() })
+        .then(() => { db.ref("_ping").remove(); setSyncStatus("online"); })
+        .catch(err => {
+          setSyncStatus("rules_error");
+          showToast("⚠️ Firebase: sin permiso de escritura. Revisa las reglas.");
+        });
+    } else {
+      setSyncStatus("offline");
+    }
+  });
+
+  db.ref("reports").on("value", snap => {
+    allReports = snap.val() || {};
+    saveBackup();
+    refreshTodayData();
+    renderAll();
+    const now = new Date();
+    const hhmm = String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+    document.getElementById("sync-label").textContent = `Actualizado a las ${hhmm}`;
+  });
+}
+
+function useLocalMode() {
+  db = null;
+  localStorage.setItem(CFG_KEY, JSON.stringify({ local: true }));
+  document.getElementById("setup-overlay").classList.add("hidden");
+  setSyncStatus("local");
+  showToast("Modo local — los cambios solo se guardan en este dispositivo");
 }
 
 function refreshTodayData() {
