@@ -406,7 +406,18 @@ const TYPE_LABELS = { buzones:"Buzones/Portería", local:"Local comercial", cotx
 // ═══════════════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════════════
-const CFG_KEY = "flyers_firebase_cfg";
+const CFG_KEY     = "flyers_firebase_cfg";
+const BACKUP_KEY  = "tracker_reports_backup";
+
+function saveBackup() {
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify(allReports)); } catch(e) {}
+}
+function loadBackup() {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (raw) allReports = JSON.parse(raw);
+  } catch(e) {}
+}
 
 let db              = null;
 let currentTrainer  = "";
@@ -480,6 +491,11 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 function initFirebase() {
+  // Cargar backup local inmediatamente (antes de que responda Firebase)
+  loadBackup();
+  refreshTodayData();
+  renderAll();
+
   try {
     const raw = localStorage.getItem(CFG_KEY);
     if (!raw) throw new Error("no cfg");
@@ -496,9 +512,9 @@ function initFirebase() {
     // escuchar todos los reports
     db.ref("reports").on("value", snap => {
       allReports = snap.val() || {};
+      saveBackup();  // guardar copia local por si acaso
       refreshTodayData();
       renderAll();
-      // Mostrar hora de última actualización
       const now = new Date();
       const hhmm = String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
       document.getElementById("sync-label").textContent = `Actualizado a las ${hhmm}`;
@@ -675,42 +691,38 @@ function renderTeam() {
 // ═══════════════════════════════════════════════════════════════════
 function writeSummary(data) {
   if (!currentTrainer) return;
-  const path = `reports/${selectedDateKey}/${currentTrainer}/summary`;
   if (!allReports[selectedDateKey]) allReports[selectedDateKey] = {};
   if (!allReports[selectedDateKey][currentTrainer]) allReports[selectedDateKey][currentTrainer] = { summary:{}, flyers:{} };
   allReports[selectedDateKey][currentTrainer].summary = Object.assign(
     allReports[selectedDateKey][currentTrainer].summary || {}, data
   );
-  if (db) db.ref(path).update(data);
+  saveBackup();
+  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/summary`).update(data);
   refreshTodayData();
   renderAll();
 }
 
 function writeFlyer(entry) {
   if (!currentTrainer) return;
-  const path = `reports/${selectedDateKey}/${currentTrainer}/flyers`;
-  if (db) {
-    db.ref(path).push(entry);
-  } else {
-    if (!allReports[selectedDateKey]) allReports[selectedDateKey] = {};
-    if (!allReports[selectedDateKey][currentTrainer]) allReports[selectedDateKey][currentTrainer] = { summary:{}, flyers:{} };
-    const key = "local_" + Date.now();
-    allReports[selectedDateKey][currentTrainer].flyers[key] = entry;
-    refreshTodayData();
-    renderAll();
-  }
+  if (!allReports[selectedDateKey]) allReports[selectedDateKey] = {};
+  if (!allReports[selectedDateKey][currentTrainer]) allReports[selectedDateKey][currentTrainer] = { summary:{}, flyers:{} };
+  const key = "local_" + Date.now();
+  allReports[selectedDateKey][currentTrainer].flyers[key] = entry;
+  saveBackup();
+  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/flyers`).push(entry);
+  refreshTodayData();
+  renderAll();
 }
 
 function deleteFlyer(key) {
   if (!currentTrainer) return;
-  const path = `reports/${selectedDateKey}/${currentTrainer}/flyers/${key}`;
-  if (db) {
-    db.ref(path).remove();
-  } else {
+  if (allReports[selectedDateKey]?.[currentTrainer]?.flyers) {
     delete allReports[selectedDateKey][currentTrainer].flyers[key];
-    refreshTodayData();
-    renderAll();
+    saveBackup();
   }
+  if (db) db.ref(`reports/${selectedDateKey}/${currentTrainer}/flyers/${key}`).remove();
+  refreshTodayData();
+  renderAll();
 }
 
 // ═══════════════════════════════════════════════════════════════════
