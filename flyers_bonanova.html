@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Distribució Flyers — Centre Entrenament Bonanova</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f1923; color: #e8edf2; display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── SETUP MODAL ──────────────────────────────────────────────────── */
+    #setup-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 9000;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #setup-overlay.hidden { display: none; }
+    #setup-box {
+      background: #161f2b; border: 1px solid #2a4060; border-radius: 14px;
+      width: 100%; max-width: 560px; padding: 28px; max-height: 90vh; overflow-y: auto;
+    }
+    #setup-box h2 { font-size: 17px; color: #e2f0ff; margin-bottom: 6px; }
+    #setup-box .sub { font-size: 12px; color: #7a9ab5; margin-bottom: 20px; line-height: 1.6; }
+    .setup-step { background: #0d1620; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; border-left: 3px solid #3a88d8; }
+    .setup-step .step-num { font-size: 10px; font-weight: 700; color: #3a88d8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .setup-step p { font-size: 12px; color: #a0bdd0; line-height: 1.6; }
+    .setup-step a { color: #69b8f7; }
+    .setup-step code { background: #1a2840; padding: 1px 5px; border-radius: 4px; font-size: 11px; color: #b87af5; }
+    .setup-input-wrap { margin-top: 8px; }
+    .setup-input-wrap label { font-size: 11px; color: #7a9ab5; display: block; margin-bottom: 4px; margin-top: 8px; }
+    .setup-input {
+      width: 100%; background: #1a2840; border: 1px solid #2a4060; border-radius: 8px;
+      padding: 8px 10px; color: #e8edf2; font-size: 12px; outline: none;
+    }
+    .setup-input:focus { border-color: #3a88d8; }
+    .setup-input.err   { border-color: #f07070; }
+    #btn-setup-save {
+      width: 100%; margin-top: 16px; padding: 12px; border-radius: 10px; border: none;
+      background: linear-gradient(135deg,#1e4a7c,#1a3a60); color: #cce4ff;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    #btn-setup-save:hover { background: linear-gradient(135deg,#2a5a8c,#1e4a7c); }
+    .setup-err { font-size: 11px; color: #f07070; margin-top: 6px; display: none; }
+    .setup-or  { text-align: center; font-size: 11px; color: #4a7a9b; margin: 10px 0; }
+    #btn-setup-local {
+      width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #2a4060;
+      background: #1a2840; color: #7a9ab5; font-size: 12px; cursor: pointer; transition: all .2s;
+    }
+    #btn-setup-local:hover { border-color: #3a88d8; color: #cce4ff; }
+
+    /* ── SIDEBAR ──────────────────────────────────────────────────────── */
+    #sidebar {
+      width: 340px; min-width: 280px; background: #161f2b; display: flex; flex-direction: column;
+      border-right: 1px solid #223040; overflow: hidden; z-index: 1000;
+    }
+    #sidebar-header { padding: 14px 14px 10px; background: #0d1620; border-bottom: 1px solid #223040; }
+    #sidebar-header h1 { font-size: 14px; font-weight: 700; color: #e2f0ff; }
+    #sidebar-header p  { font-size: 10px; color: #8aabb5; margin-top: 2px; }
+
+    /* sync indicator */
+    #sync-status {
+      display: flex; align-items: center; gap: 6px; margin-top: 7px;
+      font-size: 10px; color: #4a7a9b;
+    }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #4a7a9b; flex-shrink: 0; }
+    .sync-dot.online  { background: #3ecf8e; box-shadow: 0 0 5px #3ecf8e88; }
+    .sync-dot.offline { background: #f07070; }
+
+    /* stats */
+    #stats { display: flex; gap: 6px; padding: 10px 12px; background: #0d1620; border-bottom: 1px solid #223040; }
+    .stat { flex: 1; background: #1a2840; border-radius: 8px; padding: 7px 8px; text-align: center; }
+    .stat .val { font-size: 18px; font-weight: 700; }
+    .stat .lbl { font-size: 9px; color: #7a9ab5; margin-top: 1px; }
+    .val.done  { color: #3ecf8e; }
+    .val.pend  { color: #f5a623; }
+    .val.total { color: #69b8f7; }
+
+    /* progress */
+    #progress-wrap { padding: 7px 12px 4px; background: #0d1620; border-bottom: 1px solid #223040; }
+    #progress-bar-bg { background: #1a2840; border-radius: 20px; height: 6px; overflow: hidden; }
+    #progress-bar { height: 100%; background: linear-gradient(90deg,#3ecf8e,#1ab36e); border-radius: 20px; transition: width .4s; }
+    #progress-label { font-size: 10px; color: #7a9ab5; text-align: right; margin-top: 2px; }
+
+    /* team filter pills */
+    #team-filter { padding: 8px 12px; background: #0d1620; border-bottom: 1px solid #223040; display: flex; gap: 5px; flex-wrap: wrap; }
+    .team-pill {
+      font-size: 10px; padding: 4px 10px; border-radius: 20px; border: 1.5px solid transparent;
+      cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 5px; font-weight: 600;
+    }
+    .team-pill:hover { opacity: .85; }
+    .team-pill.active { opacity: 1 !important; }
+    .team-pill:not(.active) { opacity: .45; }
+
+    /* filters */
+    #filters { padding: 7px 12px; background: #0d1620; border-bottom: 1px solid #223040; display: flex; gap: 5px; }
+    .filter-btn {
+      font-size: 10px; padding: 4px 10px; border-radius: 20px; border: 1px solid #2a4060;
+      background: #1a2840; color: #8aabb5; cursor: pointer; transition: all .2s;
+    }
+    .filter-btn.active { background: #1e4a7c; border-color: #3a88d8; color: #cce4ff; }
+
+    /* search */
+    #search-wrap { padding: 7px 12px; background: #0d1620; border-bottom: 1px solid #223040; }
+    #search {
+      width: 100%; background: #1a2840; border: 1px solid #2a4060; border-radius: 8px;
+      padding: 6px 10px; color: #e8edf2; font-size: 12px; outline: none;
+    }
+    #search:focus { border-color: #3a88d8; }
+    #search::placeholder { color: #4a6a85; }
+
+    /* zone list */
+    #zone-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+    #zone-list::-webkit-scrollbar { width: 4px; }
+    #zone-list::-webkit-scrollbar-thumb { background: #2a4060; border-radius: 4px; }
+
+    .zone-section-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: #4a7a9b; padding: 6px 12px 3px;
+    }
+    .zone-item {
+      display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+      cursor: pointer; transition: background .15s; border-left: 3px solid transparent;
+    }
+    .zone-item:hover  { background: #1a2840; }
+    .zone-item.done   { border-left-color: #3ecf8e; opacity: .72; }
+    .zone-item.active { background: #1e3050 !important; border-left-color: #69b8f7; }
+
+    .zone-cb { width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; accent-color: #3ecf8e; }
+
+    .zone-info { flex: 1; min-width: 0; }
+    .zone-name { font-size: 12px; font-weight: 600; color: #cde0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .zone-name.done { text-decoration: line-through; color: #6a9a7a; }
+    .zone-meta { font-size: 10px; color: #4a7a9b; margin-top: 1px; display: flex; gap: 6px; align-items: center; }
+
+    /* assignee chip */
+    .assignee-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+      border: 1.5px solid; cursor: pointer; transition: all .15s; flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .assignee-chip:hover { filter: brightness(1.2); }
+
+    .zone-badge {
+      font-size: 9px; padding: 2px 6px; border-radius: 20px; flex-shrink: 0; font-weight: 600;
+    }
+    .badge-buzones  { background: #1a3a60; color: #69b8f7; }
+    .badge-metro    { background: #3a1a50; color: #b87af5; }
+    .badge-mercat   { background: #1a3a20; color: #3ecf8e; }
+    .badge-parc     { background: #2a3a10; color: #a0c040; }
+    .badge-prioritat{ background: #3a2010; color: #f5a623; }
+    .badge-comerç   { background: #3a1520; color: #f07070; }
+
+    .zone-go-btn {
+      background: transparent; border: 1px solid #2a4060; border-radius: 6px;
+      color: #4a7a9b; font-size: 10px; padding: 3px 6px; cursor: pointer;
+      transition: all .15s; flex-shrink: 0;
+    }
+    .zone-go-btn:hover { background: #1a2840; border-color: #3a88d8; color: #cce4ff; }
+
+    /* assign dropdown */
+    .assign-select {
+      background: #1a2840; border: 1px solid #2a4060; border-radius: 20px;
+      color: #a0bdd0; font-size: 9px; font-weight: 600; padding: 2px 6px;
+      cursor: pointer; outline: none; flex-shrink: 0; max-width: 88px;
+    }
+    .assign-select:focus { border-color: #3a88d8; }
+
+    /* bottom actions */
+    #bottom-actions { padding: 8px 12px; border-top: 1px solid #223040; display: flex; gap: 7px; }
+    .action-btn {
+      flex: 1; padding: 8px; border-radius: 8px; border: none; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-reset   { background: #2a1515; color: #f07070; }
+    .btn-reset:hover { background: #3a1515; }
+    .btn-export  { background: #1a3a1a; color: #3ecf8e; }
+    .btn-export:hover { background: #1a4a1a; }
+    .btn-setup   { background: #1a2840; color: #7a9ab5; border: 1px solid #2a4060; }
+    .btn-setup:hover { border-color: #3a88d8; color: #cce4ff; }
+
+    /* MAP */
+    #map { flex: 1; }
+
+    /* LEGEND */
+    #legend {
+      position: absolute; bottom: 20px; right: 14px; z-index: 999;
+      background: rgba(13,22,32,.92); border: 1px solid #223040; border-radius: 10px;
+      padding: 10px 14px; font-size: 11px; min-width: 150px; backdrop-filter: blur(4px);
+    }
+    #legend h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4a7a9b; margin-bottom: 7px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+    /* POPUP */
+    .leaflet-popup-content-wrapper { background: #161f2b; border: 1px solid #2a4060; color: #cde0f0; border-radius: 10px; min-width: 200px; }
+    .leaflet-popup-tip { background: #161f2b; }
+    .leaflet-popup-content { font-size: 12px; line-height: 1.6; }
+    .popup-title { font-weight: 700; font-size: 13px; color: #69b8f7; margin-bottom: 4px; }
+    .popup-sub   { color: #7a9ab5; font-size: 11px; }
+    .popup-assign-row { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .popup-assign-label { font-size: 11px; color: #7a9ab5; }
+    .popup-assign-select {
+      background: #1a2840; border: 1px solid #2a4060; border-radius: 8px;
+      color: #e8edf2; font-size: 11px; padding: 4px 8px; outline: none; cursor: pointer; flex: 1;
+    }
+    .popup-btn {
+      display: block; width: 100%; margin-top: 10px; padding: 7px 14px; border-radius: 8px;
+      background: #1e4a7c; color: #cce4ff; border: none; cursor: pointer; font-size: 11px; font-weight: 700; text-align: center;
+    }
+    .popup-btn.done-btn { background: #1a4a2a; color: #3ecf8e; }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+      background: #1a3a2a; border: 1px solid #3ecf8e; color: #3ecf8e;
+      padding: 7px 20px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      opacity: 0; transition: opacity .3s; z-index: 9999; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    @media (max-width: 640px) {
+      body { flex-direction: column; }
+      #sidebar { width: 100%; min-width: 100%; height: 48vh; border-right: none; border-bottom: 1px solid #223040; }
+      #map { height: 52vh; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── SETUP MODAL ──────────────────────────────────────────────────────── -->
+<div id="setup-overlay" class="hidden">
+  <div id="setup-box">
+    <h2>⚙️ Configuració inicial</h2>
+    <p class="sub">Per compartir el mapa per WhatsApp cal que les dades s'emmagatzemin al núvol. Segueix els passos per connectar Firebase (gratuït, sense targeta de crèdit).</p>
+
+    <div class="setup-step">
+      <div class="step-num">Pas 1 — Crea el projecte Firebase</div>
+      <p>Ves a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a>, fes clic a <strong>"Afegir projecte"</strong>, posa-li un nom (p.ex. <code>flyers-bonanova</code>) i crea'l.</p>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">Pas 2 — Crea una Realtime Database</div>
+      <p>Al menú esquerre → <strong>Build → Realtime Database → Create database</strong>. Escull <strong>ubicació Europa</strong> i inicia en mode <strong>test</strong> (permet lectura/escriptura durant 30 dies; pots ampliar-ho).</p>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">Pas 3 — Copia la configuració</div>
+      <p>Ves a <strong>Configuració del projecte (⚙️) → General → Les teves apps → &lt;/&gt; Web</strong>. Registra l'app i copia els valors de <code>firebaseConfig</code> als camps de sota.</p>
+      <div class="setup-input-wrap">
+        <label>apiKey</label>
+        <input class="setup-input" id="cfg-apiKey" placeholder="AIzaSy..." />
+        <label>databaseURL</label>
+        <input class="setup-input" id="cfg-databaseURL" placeholder="https://el-teu-projecte-default-rtdb.europe-west1.firebasedatabase.app" />
+        <label>projectId</label>
+        <input class="setup-input" id="cfg-projectId" placeholder="flyers-bonanova" />
+        <label>appId</label>
+        <input class="setup-input" id="cfg-appId" placeholder="1:123456789:web:abc..." />
+      </div>
+      <div class="setup-err" id="setup-err">Omple almenys apiKey, databaseURL i projectId.</div>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">Pas 4 — Equip (edita els noms)</div>
+      <p>Modifica la llista <code>TEAM</code> al codi (línia ~490) per posar els noms reals dels teus entrenadors. Ja hi ha 4 exemples.</p>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">Pas 5 — Publica el fitxer (per compartir per WhatsApp)</div>
+      <p>Ves a <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a>, arrossega aquest fitxer HTML i obtindràs un URL públic com <code>https://xxx.netlify.app</code>. Comparteix-lo per WhatsApp i tothom tindrà accés en temps real.</p>
+    </div>
+
+    <button id="btn-setup-save" onclick="saveSetup()">Guardar i connectar →</button>
+    <div class="setup-or">— o —</div>
+    <button id="btn-setup-local" onclick="useLocalMode()">Usar en mode local (sense compartir)</button>
+  </div>
+</div>
+
+<!-- ── SIDEBAR ──────────────────────────────────────────────────────────── -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>💪 Distribució Flyers — Bonanova</h1>
+    <p>Teodora Lamadrid 27, 08022 Barcelona · Radi 300m</p>
+    <div id="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Connectant…</span>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="stat"><div class="val total" id="stat-total">0</div><div class="lbl">Total</div></div>
+    <div class="stat"><div class="val done"  id="stat-done">0</div><div class="lbl">Fetes</div></div>
+    <div class="stat"><div class="val pend"  id="stat-pend">0</div><div class="lbl">Pendents</div></div>
+  </div>
+
+  <div id="progress-wrap">
+    <div id="progress-bar-bg"><div id="progress-bar" style="width:0%"></div></div>
+    <div id="progress-label">0% completat</div>
+  </div>
+
+  <!-- team filter -->
+  <div id="team-filter"></div>
+
+  <div id="filters">
+    <button class="filter-btn active" data-filter="all">Totes</button>
+    <button class="filter-btn" data-filter="pending">Pendents</button>
+    <button class="filter-btn" data-filter="done">Fetes</button>
+  </div>
+
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Buscar carrer o zona…" />
+  </div>
+
+  <div id="zone-list"></div>
+
+  <div id="bottom-actions">
+    <button class="action-btn btn-reset"  onclick="resetAll()">↺ Reiniciar</button>
+    <button class="action-btn btn-export" onclick="exportProgress()">↓ Exportar</button>
+    <button class="action-btn btn-setup"  onclick="openSetup()">⚙</button>
+  </div>
+</div>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- LEGEND -->
+<div id="legend">
+  <h3>Llegenda</h3>
+  <div class="legend-item"><div class="legend-dot" style="background:#f5a623"></div> Centre</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3a88d8;opacity:.4;border:2px solid #3a88d8"></div> Radi 300m</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3ecf8e"></div> Fet</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e86060"></div> Alta prioritat</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f5a623"></div> Pendent</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#b87af5"></div> Metro / Bus</div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  CONFIGURACIÓ — edita TEAM amb els noms reals dels teus entrenadors
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TEAM = [
+  { id:"",        name:"Sense assignar", color:"#4a7a9b", bg:"#1a2840" },
+  { id:"aleix",   name:"Aleix",          color:"#3ecf8e", bg:"#0e2e1e" },
+  { id:"guillem", name:"Guillem",        color:"#f5a623", bg:"#2e1e06" },
+  { id:"cristina",name:"Cristina",       color:"#b87af5", bg:"#22103a" },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ZONES — coordenades verificades via OpenStreetMap (abril 2026)
+// ═══════════════════════════════════════════════════════════════════════════
+const CENTER = [41.40661, 2.13688];
+const RADIUS = 300;
+
+const ZONES = [
+  // Alta prioritat — eixos principals
+  { id:"z01", name:"Teodora Lamadrid (tram oest, 1-27)", type:"buzones", priority:"alta",
+    badge:"badge-prioritat", badgeLabel:"Alta prioritat",
+    lat:41.40660, lng:2.13540, desc:"Tram fins al centre, buzones a ambdós costats", units:50 },
+  { id:"z02", name:"Teodora Lamadrid (tram est, 28-50)", type:"buzones", priority:"alta",
+    badge:"badge-prioritat", badgeLabel:"Alta prioritat",
+    lat:41.40705, lng:2.13770, desc:"Tram est de la mateixa via cap a Bertran", units:40 },
+  { id:"z03", name:"Carrer de Balmes (tram dins radi)", type:"buzones", priority:"alta",
+    badge:"badge-prioritat", badgeLabel:"Alta prioritat",
+    lat:41.40700, lng:2.13852, desc:"Via principal N-S, baixos comercials + residencial", units:90 },
+  { id:"z04", name:"Carrer de Muntaner (tram dins radi)", type:"buzones", priority:"alta",
+    badge:"badge-prioritat", badgeLabel:"Alta prioritat",
+    lat:41.40446, lng:2.13582, desc:"Via eix alta densitat, comerços als baixos", units:85 },
+  { id:"z05", name:"Passeig de Sant Gervasi (tram N)", type:"buzones", priority:"alta",
+    badge:"badge-prioritat", badgeLabel:"Alta prioritat",
+    lat:41.40716, lng:2.13400, desc:"Passeig ampli, edificis anys 60-80", units:60 },
+
+  // Transport — FGC / Bus
+  { id:"z06", name:"Estació FGC El Putxet", type:"metro", priority:"alta",
+    badge:"badge-metro", badgeLabel:"FGC L7",
+    lat:41.40581, lng:2.13914, desc:"Bocana FGC L7 — hora punta matí i tarda", units:null },
+  { id:"z07", name:"Entrada metro Balmes (bocana)", type:"metro", priority:"alta",
+    badge:"badge-metro", badgeLabel:"FGC",
+    lat:41.40566, lng:2.13933, desc:"Entrada Balmes / Estació El Putxet", units:null },
+  { id:"z08", name:"Entrada metro Joaquim Folguera", type:"metro", priority:"normal",
+    badge:"badge-metro", badgeLabel:"FGC",
+    lat:41.40584, lng:2.13895, desc:"Altra entrada de la mateixa estació FGC", units:null },
+  { id:"z09", name:"Bus Pl. Bonanova (Muntaner)", type:"metro", priority:"normal",
+    badge:"badge-metro", badgeLabel:"Bus",
+    lat:41.40621, lng:2.13343, desc:"Parada bus V15/H4 Plaça de la Bonanova", units:null },
+  { id:"z10", name:"Bus Balmes - Joaquim Folguera", type:"metro", priority:"normal",
+    badge:"badge-metro", badgeLabel:"Bus",
+    lat:41.40686, lng:2.13871, desc:"Parada bus davant de l'estació FGC", units:null },
+
+  // Mercats, equipaments i supermercats
+  { id:"z11", name:"Mercat de Sant Gervasi", type:"comerç", priority:"alta",
+    badge:"badge-mercat", badgeLabel:"Mercat",
+    lat:41.40546, lng:2.13836, desc:"Molt d'afluència matinal, especialment dissabtes", units:null },
+  { id:"z12", name:"Biblioteca Sant Gervasi - Joan Maragall", type:"comerç", priority:"normal",
+    badge:"badge-comerç", badgeLabel:"Equipament",
+    lat:41.40587, lng:2.13577, desc:"Flux continu de veïns del barri", units:null },
+  { id:"z13", name:"Centre Cívic Vil·la Florida", type:"comerç", priority:"normal",
+    badge:"badge-comerç", badgeLabel:"Equipament",
+    lat:41.40562, lng:2.13565, desc:"Centre cívic, activitats veïnals diàries", units:null },
+  { id:"z14", name:"Església Ntra. Sra. de les Mercedes", type:"comerç", priority:"normal",
+    badge:"badge-comerç", badgeLabel:"Equipament",
+    lat:41.40575, lng:2.13717, desc:"Sortida de missa diumenge — molt recorrent", units:null },
+  { id:"z15", name:"Plaça de la Bonanova", type:"comerç", priority:"normal",
+    badge:"badge-mercat", badgeLabel:"Plaça",
+    lat:41.40681, lng:2.13360, desc:"Plaça central, terrasses, flux alt de veïns", units:null },
+  { id:"z16", name:"Plaça de Rosa Sabater", type:"comerç", priority:"normal",
+    badge:"badge-mercat", badgeLabel:"Plaça",
+    lat:41.40756, lng:2.13735, desc:"Plaça interior barri, famílies amb nens", units:null },
+  { id:"z17", name:"Plaça de Narcisa Freixas", type:"comerç", priority:"normal",
+    badge:"badge-mercat", badgeLabel:"Plaça",
+    lat:41.40839, lng:2.13808, desc:"Plaça nord, prop de Passatge Maluquer", units:null },
+  { id:"z18", name:"Mercadona (Pl. Bonanova)", type:"comerç", priority:"alta",
+    badge:"badge-comerç", badgeLabel:"Supermercat",
+    lat:41.40620, lng:2.13499, desc:"Entrada/sortida Mercadona, molt de pas diari", units:null },
+  { id:"z19", name:"Caprabo (Folgueroles)", type:"comerç", priority:"alta",
+    badge:"badge-comerç", badgeLabel:"Supermercat",
+    lat:41.40809, lng:2.13661, desc:"Caprabo — clients del barri", units:null },
+  { id:"z20", name:"Plusfresc (Teodora Lamadrid)", type:"comerç", priority:"alta",
+    badge:"badge-comerç", badgeLabel:"Supermercat",
+    lat:41.40641, lng:2.13714, desc:"Molt proper al centre, clients ideals", units:null },
+  { id:"z21", name:"Supercor (Balmes)", type:"comerç", priority:"normal",
+    badge:"badge-comerç", badgeLabel:"Supermercat",
+    lat:41.40712, lng:2.13867, desc:"Supercor Balmes, molt de trànsit", units:null },
+  { id:"z22", name:"Sorli Discau (Pl. Bonanova)", type:"comerç", priority:"normal",
+    badge:"badge-comerç", badgeLabel:"Supermercat",
+    lat:41.40758, lng:2.13440, desc:"Sorli Discau zona Bonanova", units:null },
+
+  // Carrers residencials
+  { id:"z23", name:"Carrer de Castanyer", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40717, lng:2.13808, desc:"Residencial arbrat, edificis anys 60-70", units:35 },
+  { id:"z24", name:"Carrer de Buscarons", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40645, lng:2.13824, desc:"Carrer curt, blocs densos", units:28 },
+  { id:"z25", name:"Carrer de Rubinstein", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40573, lng:2.13849, desc:"Residencial, proper al mercat", units:30 },
+  { id:"z26", name:"Carrer de Folgueroles", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40801, lng:2.13622, desc:"Accés des de Passeig Bonanova cap al centre", units:32 },
+  { id:"z27", name:"Carrer de Moragas", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40837, lng:2.13751, desc:"Residencial, tram entre Bonanova i Castanyer", units:32 },
+  { id:"z28", name:"Carrer de Pujol", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40492, lng:2.13648, desc:"Petits blocs d'habitatge, zona sud", units:30 },
+  { id:"z29", name:"Carrer de Bertran", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40639, lng:2.13987, desc:"Carrer residencial est, tram dins radi", units:40 },
+  { id:"z30", name:"Carrer de Joan Ferrándiz", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40683, lng:2.14009, desc:"Paral·lel a Teodora Lamadrid, tram est", units:30 },
+  { id:"z31", name:"Carrer de Musitu", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40597, lng:2.14040, desc:"Carrer curt, edificis residencials", units:25 },
+  { id:"z32", name:"Carrer de Bisbe Sivilla", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40483, lng:2.13529, desc:"Residencial, edificis 1950-70", units:38 },
+  { id:"z33", name:"Carrer de Figueres", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40651, lng:2.13482, desc:"Carrer interior, proper a Pl. Bonanova", units:25 },
+  { id:"z34", name:"Carrer de Sant Gervasi de Cassoles", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40463, lng:2.13868, desc:"Tram dins del radi, zona sud-est", units:40 },
+  { id:"z35", name:"Carrer del Berlinès / Pintor Gimeno", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40433, lng:2.13836, desc:"Carrers residencials zona sud", units:30 },
+  { id:"z36", name:"Passatge de Maluquer (nord)", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Passatge",
+    lat:41.40910, lng:2.13638, desc:"Passatge interior nord, cases unifamiliars", units:15 },
+  { id:"z37", name:"Carrer del Camp / Carrer de Reus", type:"buzones", priority:"normal",
+    badge:"badge-buzones", badgeLabel:"Buzones",
+    lat:41.40423, lng:2.13531, desc:"Carrers zona sud, edificis baixos", units:28 },
+
+  // Aparcaments
+  { id:"z38", name:"Parking Bertran-Putxet (exterior)", type:"cotxes", priority:"normal",
+    badge:"badge-parc", badgeLabel:"Cotxes/Motos",
+    lat:41.40785, lng:2.13971, desc:"Zona d'accés parking Promoparc — cotxes al carrer", units:null },
+  { id:"z39", name:"Cotxes Balmes (tram dins radi)", type:"cotxes", priority:"normal",
+    badge:"badge-parc", badgeLabel:"Cotxes/Motos",
+    lat:41.40560, lng:2.13920, desc:"Aparcament en superfície via Balmes", units:null },
+  { id:"z40", name:"Cotxes Passeig Sant Gervasi", type:"cotxes", priority:"normal",
+    badge:"badge-parc", badgeLabel:"Cotxes/Motos",
+    lat:41.40500, lng:2.13400, desc:"Vehicles al passeig — motos i cotxes", units:null },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const CFG_KEY   = "flyers_firebase_cfg";
+const LOCAL_KEY = "flyers_bonanova_local";
+
+let db          = null;   // Firebase db ref (null = local mode)
+let zoneState   = {};     // { zoneId: { done: bool, assignedTo: string } }
+let activeFilter     = "all";
+let activeTeamFilter = "";   // "" = all
+let searchQuery      = "";
+let activeZoneId     = null;
+let markers          = {};
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function teamById(id) { return TEAM.find(t => t.id === id) || TEAM[0]; }
+function zoneData(id) { return zoneState[id] || { done: false, assignedTo: "" }; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FIREBASE / LOCAL INIT
+// ═══════════════════════════════════════════════════════════════════════════
+function initApp() {
+  const cfg = loadCfg();
+  if (cfg) {
+    connectFirebase(cfg);
+  } else {
+    document.getElementById("setup-overlay").classList.remove("hidden");
+  }
+}
+
+function loadCfg() {
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    if (c.local) return c;
+    if (!c.databaseURL || c.databaseURL.startsWith("YOUR")) return null;
+    return c;
+  } catch { return null; }
+}
+
+function connectFirebase(cfg) {
+  document.getElementById("setup-overlay").classList.add("hidden");
+
+  if (cfg.local) {
+    useLocalMode(true);
+    return;
+  }
+
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(cfg);
+    }
+    db = firebase.database();
+
+    setSyncStatus("connecting");
+
+    // realtime listener — totes les zones
+    db.ref("zones").on("value", snap => {
+      zoneState = snap.val() || {};
+      setSyncStatus("online");
+      renderAll();
+    }, err => {
+      console.error(err);
+      setSyncStatus("offline");
+    });
+
+    // connection state
+    firebase.database().ref(".info/connected").on("value", snap => {
+      setSyncStatus(snap.val() ? "online" : "offline");
+    });
+
+  } catch(e) {
+    alert("Error connectant Firebase: " + e.message + "\n\nRevisa la configuració.");
+    setSyncStatus("offline");
+  }
+}
+
+function useLocalMode(silent) {
+  db = null;
+  localStorage.setItem(CFG_KEY, JSON.stringify({ local: true }));
+  document.getElementById("setup-overlay").classList.add("hidden");
+  try { zoneState = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}"); } catch {}
+  setSyncStatus("local");
+  renderAll();
+  if (!silent) showToast("Mode local activat — els canvis no es compartiran");
+}
+
+function saveLocalState() {
+  if (!db) localStorage.setItem(LOCAL_KEY, JSON.stringify(zoneState));
+}
+
+function setSyncStatus(s) {
+  const dot   = document.getElementById("sync-dot");
+  const label = document.getElementById("sync-label");
+  dot.className = "sync-dot";
+  if (s === "online")      { dot.classList.add("online");  label.textContent = "Sincronitzat en temps real"; }
+  else if (s === "offline") { dot.classList.add("offline"); label.textContent = "Sense connexió — canvis pendents"; }
+  else if (s === "local")  {                                label.textContent = "Mode local (sense sincronització)"; }
+  else                     {                                label.textContent = "Connectant…"; }
+}
+
+// ── write ──────────────────────────────────────────────────────────────────
+function writeZone(id, data) {
+  const merged = Object.assign({}, zoneData(id), data);
+  zoneState[id] = merged;
+  if (db) {
+    db.ref("zones/" + id).set(merged);
+  } else {
+    saveLocalState();
+    renderAll();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SETUP MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+function openSetup() {
+  document.getElementById("setup-overlay").classList.remove("hidden");
+}
+
+function saveSetup() {
+  const apiKey      = document.getElementById("cfg-apiKey").value.trim();
+  const databaseURL = document.getElementById("cfg-databaseURL").value.trim();
+  const projectId   = document.getElementById("cfg-projectId").value.trim();
+  const appId       = document.getElementById("cfg-appId").value.trim();
+
+  const err = document.getElementById("setup-err");
+  if (!apiKey || !databaseURL || !projectId) {
+    err.style.display = "block";
+    ["cfg-apiKey","cfg-databaseURL","cfg-projectId"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) el.classList.add("err");
+    });
+    return;
+  }
+  err.style.display = "none";
+
+  const cfg = { apiKey, databaseURL, projectId, appId,
+    authDomain: projectId + ".firebaseapp.com",
+    storageBucket: projectId + ".appspot.com",
+    messagingSenderId: "" };
+
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  connectFirebase(cfg);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MAP SETUP
+// ═══════════════════════════════════════════════════════════════════════════
+const map = L.map("map", { zoomControl: true }).setView(CENTER, 16);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+  maxZoom: 19
+}).addTo(map);
+
+L.circle(CENTER, {
+  radius: RADIUS, color: "#3a88d8", fillColor: "#3a88d8",
+  fillOpacity: 0.07, weight: 2, dashArray: "6 4"
+}).addTo(map);
+
+const centerIcon = L.divIcon({
+  html: `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f5a623,#e8880e);border:3px solid #fff;box-shadow:0 2px 10px rgba(245,166,35,.6);display:flex;align-items:center;justify-content:center;font-size:16px;">💪</div>`,
+  className:"", iconSize:[36,36], iconAnchor:[18,18]
+});
+L.marker(CENTER, { icon: centerIcon, zIndexOffset: 1000 })
+  .addTo(map)
+  .bindPopup(`<div class="popup-title">💪 Centre d'Entrenament Personal</div><div class="popup-sub">Teodora Lamadrid 27, 08022 Barcelona</div>`);
+
+// ── markers ────────────────────────────────────────────────────────────────
+function markerColor(zone) {
+  const d = zoneData(zone.id);
+  if (d.done) return "#3ecf8e";
+  if (zone.type === "metro") return "#b87af5";
+  if (zone.priority === "alta") return "#e86060";
+  return "#f5a623";
+}
+
+function makeMarkerIcon(zone) {
+  const d    = zoneData(zone.id);
+  const col  = markerColor(zone);
+  const icons = { buzones:"📬", metro:"🚇", comerç:"🏪", cotxes:"🚗" };
+  const team  = teamById(d.assignedTo);
+  const ring  = d.assignedTo ? `border: 2.5px solid ${team.color};` : `border: 2px solid #fff;`;
+  return L.divIcon({
+    html: `<div style="width:28px;height:28px;border-radius:50%;background:${col};${ring}box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:${d.done?.72:1};">${icons[zone.type]||"📍"}</div>`,
+    className:"", iconSize:[28,28], iconAnchor:[14,14]
+  });
+}
+
+function makeTeamOptions(currentId) {
+  return TEAM.map(t =>
+    `<option value="${t.id}" ${t.id===currentId?"selected":""}>${t.id ? t.name : "— Sense assignar —"}</option>`
+  ).join("");
+}
+
+function makePopupContent(zone) {
+  const d    = zoneData(zone.id);
+  const units = zone.units ? ` · ~${zone.units} bústies` : "";
+  return `<div class="popup-title">${zone.name}</div>
+    <div class="popup-sub">${zone.desc}${units}</div>
+    <div class="popup-assign-row">
+      <span class="popup-assign-label">Assignat a:</span>
+      <select class="popup-assign-select" onchange="assignZone('${zone.id}', this.value)">
+        ${makeTeamOptions(d.assignedTo)}
+      </select>
+    </div>
+    <button class="popup-btn ${d.done?"done-btn":""}" onclick="toggleZone('${zone.id}')">
+      ${d.done ? "↺ Marcar com a PENDENT" : "✓ Marcar com a FETA"}
+    </button>`;
+}
+
+ZONES.forEach(z => {
+  const m = L.marker([z.lat, z.lng], { icon: makeMarkerIcon(z) })
+    .addTo(map)
+    .bindPopup(makePopupContent(z));
+  m.on("click", () => { activeZoneId = z.id; renderList(); highlightSidebarItem(z.id); });
+  markers[z.id] = m;
+});
+
+function refreshMarker(id) {
+  const z = ZONES.find(x => x.id === id);
+  if (!z) return;
+  markers[id].setIcon(makeMarkerIcon(z));
+  if (markers[id].isPopupOpen()) markers[id].setPopupContent(makePopupContent(z));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function toggleZone(id) {
+  const done = !zoneData(id).done;
+  writeZone(id, { done });
+  map.closePopup();
+  showToast(done ? "✓ Zona marcada com a FETA" : "↺ Zona marcada com a PENDENT");
+}
+
+function assignZone(id, memberId) {
+  writeZone(id, { assignedTo: memberId });
+  const name = teamById(memberId).name;
+  showToast(memberId ? `Assignat a ${name}` : "Assignació eliminada");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderTeamFilter();
+  renderList();
+  updateStats();
+  ZONES.forEach(z => refreshMarker(z.id));
+}
+
+// team filter pills
+function renderTeamFilter() {
+  const wrap = document.getElementById("team-filter");
+  wrap.innerHTML = TEAM.map(t => {
+    const count = t.id === ""
+      ? ZONES.length
+      : ZONES.filter(z => zoneData(z.id).assignedTo === t.id).length;
+    const isActive = activeTeamFilter === t.id;
+    return `<button class="team-pill ${isActive?"active":""}"
+      style="background:${t.bg};color:${t.color};border-color:${t.color};"
+      onclick="setTeamFilter('${t.id}')">
+      ${t.id ? t.name : "Tots"} <span style="opacity:.7">${count}</span>
+    </button>`;
+  }).join("");
+}
+
+function setTeamFilter(id) {
+  activeTeamFilter = id;
+  renderTeamFilter();
+  renderList();
+}
+
+// sections
+const SECTIONS = [
+  { key:"alta",   label:"🔴 Alta Prioritat", filter: z => z.priority==="alta" },
+  { key:"metro",  label:"🟣 FGC / Metro / Bus", filter: z => z.type==="metro" && z.priority!=="alta" },
+  { key:"comerc", label:"🏪 Mercats, Equipaments i Supermercats", filter: z => z.type==="comerç" && z.priority!=="alta" },
+  { key:"buzones",label:"📬 Carrers Residencials", filter: z => z.type==="buzones" && z.priority==="normal" },
+  { key:"cotxes", label:"🚗 Cotxes i Motos", filter: z => z.type==="cotxes" },
+];
+
+function renderList() {
+  const list = document.getElementById("zone-list");
+  list.innerHTML = "";
+
+  SECTIONS.forEach(sec => {
+    let zones = ZONES.filter(sec.filter);
+
+    if (activeTeamFilter !== "") {
+      zones = zones.filter(z => zoneData(z.id).assignedTo === activeTeamFilter);
+    }
+    if (activeFilter === "done")    zones = zones.filter(z => zoneData(z.id).done);
+    if (activeFilter === "pending") zones = zones.filter(z => !zoneData(z.id).done);
+    if (searchQuery) zones = zones.filter(z => z.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (!zones.length) return;
+
+    const secEl = document.createElement("div");
+    secEl.innerHTML = `<div class="zone-section-title">${sec.label}</div>`;
+
+    zones.forEach(z => {
+      const d    = zoneData(z.id);
+      const team = teamById(d.assignedTo);
+
+      const item = document.createElement("div");
+      item.className = `zone-item${d.done?" done":""}${activeZoneId===z.id?" active":""}`;
+      item.dataset.id = z.id;
+
+      const assignChip = d.assignedTo
+        ? `<span class="assignee-chip" style="color:${team.color};border-color:${team.color};background:${team.bg};" onclick="event.stopPropagation();openAssignPopup('${z.id}')">${team.name}</span>`
+        : `<span class="assignee-chip" style="color:#4a7a9b;border-color:#2a4060;background:#1a2840;" onclick="event.stopPropagation();openAssignPopup('${z.id}')">+ Assignar</span>`;
+
+      item.innerHTML = `
+        <input class="zone-cb" type="checkbox" ${d.done?"checked":""} onchange="toggleZone('${z.id}')" onclick="event.stopPropagation()"/>
+        <div class="zone-info">
+          <div class="zone-name${d.done?" done":""}">${z.name}</div>
+          <div class="zone-meta">
+            <span class="zone-badge ${z.badge}">${z.badgeLabel}</span>
+            ${z.units ? `<span style="color:#4a7a9b">~${z.units} bústies</span>` : ""}
+          </div>
+        </div>
+        ${assignChip}
+        <button class="zone-go-btn" onclick="event.stopPropagation();flyToZone('${z.id}')">→</button>
+      `;
+      item.addEventListener("click", () => flyToZone(z.id));
+      secEl.appendChild(item);
+    });
+
+    list.appendChild(secEl);
+  });
+}
+
+// ── assign popup helper (opens map popup) ──────────────────────────────────
+function openAssignPopup(id) {
+  flyToZone(id);
+}
+
+function flyToZone(id) {
+  const z = ZONES.find(x => x.id === id);
+  if (!z) return;
+  activeZoneId = id;
+  map.flyTo([z.lat, z.lng], 18, { animate: true, duration: 0.7 });
+  setTimeout(() => { markers[id].openPopup(); markers[id].setPopupContent(makePopupContent(z)); }, 700);
+  renderList();
+  const el = document.querySelector(`.zone-item[data-id="${id}"]`);
+  if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+}
+
+function highlightSidebarItem(id) {
+  renderList();
+  const el = document.querySelector(`.zone-item[data-id="${id}"]`);
+  if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+}
+
+// ── stats ──────────────────────────────────────────────────────────────────
+function updateStats() {
+  const total = ZONES.length;
+  const done  = ZONES.filter(z => zoneData(z.id).done).length;
+  const pct   = Math.round((done / total) * 100);
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-done").textContent  = done;
+  document.getElementById("stat-pend").textContent  = total - done;
+  document.getElementById("progress-bar").style.width = pct + "%";
+  document.getElementById("progress-label").textContent = pct + "% completat";
+}
+
+// ── filters & search ───────────────────────────────────────────────────────
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeFilter = btn.dataset.filter;
+    renderList();
+  });
+});
+document.getElementById("search").addEventListener("input", e => {
+  searchQuery = e.target.value.trim();
+  renderList();
+});
+
+// ── reset & export ─────────────────────────────────────────────────────────
+function resetAll() {
+  if (!confirm("Segur que vols reiniciar TOT el progrés? Això no es pot desfer.")) return;
+  zoneState = {};
+  if (db) db.ref("zones").remove();
+  else { localStorage.removeItem(LOCAL_KEY); renderAll(); }
+  showToast("↺ Progrés reiniciat");
+}
+
+function exportProgress() {
+  const rows = ZONES.map(z => {
+    const d = zoneData(z.id);
+    const t = teamById(d.assignedTo);
+    return `${d.done?"✓":"·"} [${t.id ? t.name : "Sense assignar"}] ${z.name}`;
+  });
+  const blob = new Blob([
+    `=== DISTRIBUCIÓ FLYERS BONANOVA ===\nData: ${new Date().toLocaleDateString("ca-ES")}\n\n` + rows.join("\n")
+  ], { type:"text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `flyers_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+}
+
+// ── toast ──────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════════════
+initApp();
+</script>
+</body>
+</html>
