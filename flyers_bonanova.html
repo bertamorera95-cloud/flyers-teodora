@@ -283,14 +283,14 @@
     <p>Teodora Lamadrid 27, 08022 Barcelona · Radi 300m</p>
     <div id="sync-status">
       <div class="sync-dot" id="sync-dot"></div>
-      <span id="sync-label">Connectant…</span>
+      <span id="sync-label">Conectando…</span>
     </div>
   </div>
 
   <div id="stats">
     <div class="stat"><div class="val total" id="stat-total">0</div><div class="lbl">Total</div></div>
-    <div class="stat"><div class="val done"  id="stat-done">0</div><div class="lbl">Fetes</div></div>
-    <div class="stat"><div class="val pend"  id="stat-pend">0</div><div class="lbl">Pendents</div></div>
+    <div class="stat"><div class="val done"  id="stat-done">0</div><div class="lbl">Hechas</div></div>
+    <div class="stat"><div class="val pend"  id="stat-pend">0</div><div class="lbl">Pendientes</div></div>
   </div>
 
   <div id="progress-wrap">
@@ -302,13 +302,13 @@
   <div id="team-filter"></div>
 
   <div id="filters">
-    <button class="filter-btn active" data-filter="all">Totes</button>
-    <button class="filter-btn" data-filter="pending">Pendents</button>
-    <button class="filter-btn" data-filter="done">Fetes</button>
+    <button class="filter-btn active" data-filter="all">Todas</button>
+    <button class="filter-btn" data-filter="pending">Pendientes</button>
+    <button class="filter-btn" data-filter="done">Hechas</button>
   </div>
 
   <div id="search-wrap">
-    <input id="search" type="text" placeholder="Buscar carrer o zona…" />
+    <input id="search" type="text" placeholder="Buscar calle o zona…" />
   </div>
 
   <div id="zone-list"></div>
@@ -346,7 +346,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const TEAM = [
-  { id:"",        name:"Sense assignar", color:"#4a7a9b", bg:"#1a2840" },
+  { id:"",        name:"Sin asignar", color:"#4a7a9b", bg:"#1a2840" },
   { id:"aleix",   name:"Aleix",          color:"#3ecf8e", bg:"#0e2e1e" },
   { id:"guillem", name:"Guillem",        color:"#f5a623", bg:"#2e1e06" },
   { id:"cristina",name:"Cristina",       color:"#b87af5", bg:"#22103a" },
@@ -575,7 +575,7 @@ function useLocalMode(silent) {
   try { zoneState = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}"); } catch {}
   setSyncStatus("local");
   renderAll();
-  if (!silent) showToast("Mode local activat — els canvis no es compartiran");
+  if (!silent) showToast("Modo local — los cambios no se sincronizarán");
 }
 
 function saveLocalState() {
@@ -586,10 +586,10 @@ function setSyncStatus(s) {
   const dot   = document.getElementById("sync-dot");
   const label = document.getElementById("sync-label");
   dot.className = "sync-dot";
-  if (s === "online")      { dot.classList.add("online");  label.textContent = "Sincronitzat en temps real"; }
-  else if (s === "offline") { dot.classList.add("offline"); label.textContent = "Sense connexió — canvis pendents"; }
-  else if (s === "local")  {                                label.textContent = "Mode local (sense sincronització)"; }
-  else                     {                                label.textContent = "Connectant…"; }
+  if (s === "online")      { dot.classList.add("online");  label.textContent = "Sincronizado en tiempo real"; }
+  else if (s === "offline") { dot.classList.add("offline"); label.textContent = "Sin conexión — cambios pendientes"; }
+  else if (s === "local")  {                                label.textContent = "Modo local (sin sincronización)"; }
+  else                     {                                label.textContent = "Conectando…"; }
 }
 
 // ── write ──────────────────────────────────────────────────────────────────
@@ -683,7 +683,7 @@ function makeMarkerIcon(zone) {
 
 function makeTeamOptions(currentId) {
   return TEAM.map(t =>
-    `<option value="${t.id}" ${t.id===currentId?"selected":""}>${t.id ? t.name : "— Sense assignar —"}</option>`
+    `<option value="${t.id}" ${t.id===currentId?"selected":""}>${t.id ? t.name : "— Sin asignar —"}</option>`
   ).join("");
 }
 
@@ -693,13 +693,13 @@ function makePopupContent(zone) {
   return `<div class="popup-title">${zone.name}</div>
     <div class="popup-sub">${zone.desc}${units}</div>
     <div class="popup-assign-row">
-      <span class="popup-assign-label">Assignat a:</span>
+      <span class="popup-assign-label">Asignado a:</span>
       <select class="popup-assign-select" onchange="assignZone('${zone.id}', this.value)">
         ${makeTeamOptions(d.assignedTo)}
       </select>
     </div>
     <button class="popup-btn ${d.done?"done-btn":""}" onclick="toggleZone('${zone.id}')">
-      ${d.done ? "↺ Marcar com a PENDENT" : "✓ Marcar com a FETA"}
+      ${d.done ? "↺ Marcar como PENDIENTE" : "✓ Marcar como HECHA"}
     </button>`;
 }
 
@@ -725,13 +725,13 @@ function toggleZone(id) {
   const done = !zoneData(id).done;
   writeZone(id, { done });
   map.closePopup();
-  showToast(done ? "✓ Zona marcada com a FETA" : "↺ Zona marcada com a PENDENT");
+  showToast(done ? "✓ Zona marcada como HECHA" : "↺ Zona marcada como PENDIENTE");
 }
 
 function assignZone(id, memberId) {
   writeZone(id, { assignedTo: memberId });
   const name = teamById(memberId).name;
-  showToast(memberId ? `Assignat a ${name}` : "Assignació eliminada");
+  showToast(memberId ? `Asignado a ${name}` : "Asignación eliminada");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -755,7 +755,7 @@ function renderTeamFilter() {
     return `<button class="team-pill ${isActive?"active":""}"
       style="background:${t.bg};color:${t.color};border-color:${t.color};"
       onclick="setTeamFilter('${t.id}')">
-      ${t.id ? t.name : "Tots"} <span style="opacity:.7">${count}</span>
+      ${t.id ? t.name : "Todos"} <span style="opacity:.7">${count}</span>
     </button>`;
   }).join("");
 }
@@ -768,7 +768,7 @@ function setTeamFilter(id) {
 
 // sections
 const SECTIONS = [
-  { key:"alta",   label:"🔴 Alta Prioritat", filter: z => z.priority==="alta" },
+  { key:"alta",   label:"🔴 Alta Prioridad", filter: z => z.priority==="alta" },
   { key:"metro",  label:"🟣 FGC / Metro / Bus", filter: z => z.type==="metro" && z.priority!=="alta" },
   { key:"comerc", label:"🏪 Mercats, Equipaments i Supermercats", filter: z => z.type==="comerç" && z.priority!=="alta" },
   { key:"buzones",label:"📬 Carrers Residencials", filter: z => z.type==="buzones" && z.priority==="normal" },
@@ -803,7 +803,7 @@ function renderList() {
 
       const assignChip = d.assignedTo
         ? `<span class="assignee-chip" style="color:${team.color};border-color:${team.color};background:${team.bg};" onclick="event.stopPropagation();openAssignPopup('${z.id}')">${team.name}</span>`
-        : `<span class="assignee-chip" style="color:#4a7a9b;border-color:#2a4060;background:#1a2840;" onclick="event.stopPropagation();openAssignPopup('${z.id}')">+ Assignar</span>`;
+        : `<span class="assignee-chip" style="color:#4a7a9b;border-color:#2a4060;background:#1a2840;" onclick="event.stopPropagation();openAssignPopup('${z.id}')">+ Asignar</span>`;
 
       item.innerHTML = `
         <input class="zone-cb" type="checkbox" ${d.done?"checked":""} onchange="toggleZone('${z.id}')" onclick="event.stopPropagation()"/>
@@ -856,7 +856,7 @@ function updateStats() {
   document.getElementById("stat-done").textContent  = done;
   document.getElementById("stat-pend").textContent  = total - done;
   document.getElementById("progress-bar").style.width = pct + "%";
-  document.getElementById("progress-label").textContent = pct + "% completat";
+  document.getElementById("progress-label").textContent = pct + "% completado";
 }
 
 // ── filters & search ───────────────────────────────────────────────────────
@@ -875,18 +875,18 @@ document.getElementById("search").addEventListener("input", e => {
 
 // ── reset & export ─────────────────────────────────────────────────────────
 function resetAll() {
-  if (!confirm("Segur que vols reiniciar TOT el progrés? Això no es pot desfer.")) return;
+  if (!confirm("¿Seguro que quieres reiniciar TODO el progreso? Esta acción no se puede deshacer.")) return;
   zoneState = {};
   if (db) db.ref("zones").remove();
   else { localStorage.removeItem(LOCAL_KEY); renderAll(); }
-  showToast("↺ Progrés reiniciat");
+  showToast("↺ Progreso reiniciado");
 }
 
 function exportProgress() {
   const rows = ZONES.map(z => {
     const d = zoneData(z.id);
     const t = teamById(d.assignedTo);
-    return `${d.done?"✓":"·"} [${t.id ? t.name : "Sense assignar"}] ${z.name}`;
+    return `${d.done?"✓":"·"} [${t.id ? t.name : "Sin asignar"}] ${z.name}`;
   });
   const blob = new Blob([
     `=== DISTRIBUCIÓ FLYERS BONANOVA ===\nData: ${new Date().toLocaleDateString("ca-ES")}\n\n` + rows.join("\n")
@@ -907,9 +907,52 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  EDIFICIS — punts taronja petits via Overpass API
+// ═══════════════════════════════════════════════════════════════════════════
+function loadBuildings() {
+  const query = `[out:json][timeout:15];
+    way["building"](around:300,${CENTER[0]},${CENTER[1]});
+    out center;`;
+  const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      (data.elements || []).forEach(el => {
+        const lat = el.center ? el.center.lat : el.lat;
+        const lon = el.center ? el.center.lon : el.lon;
+        if (!lat || !lon) return;
+        // Skip if very close to an existing zone marker (avoid overlap)
+        const tooClose = ZONES.some(z =>
+          Math.abs(z.lat - lat) < 0.00015 && Math.abs(z.lng - lon) < 0.00015
+        );
+        if (tooClose) return;
+
+        L.circleMarker([lat, lon], {
+          radius: 4,
+          color: "#c45f00",
+          fillColor: "#f5a623",
+          fillOpacity: 0.75,
+          weight: 1,
+          opacity: 0.9,
+          interactive: true,
+        }).addTo(map)
+          .bindTooltip(
+            el.tags && el.tags["addr:street"]
+              ? `${el.tags["addr:street"]} ${el.tags["addr:housenumber"] || ""}`.trim()
+              : "Edificio residencial",
+            { direction: "top", offset: [0, -4] }
+          );
+      });
+    })
+    .catch(() => {}); // fallo silencioso si no hay red
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════════════════════════════════════
 initApp();
+loadBuildings();
 </script>
 </body>
 </html>

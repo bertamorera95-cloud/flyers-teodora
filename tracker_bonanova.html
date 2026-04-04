@@ -44,10 +44,12 @@
       color: var(--text); font-size: 13px; font-weight: 600; padding: 7px 10px; outline: none;
     }
     #trainer-select:focus { border-color: var(--blue); }
-    #date-display {
-      font-size: 11px; color: var(--sub); flex-shrink: 0;
+    #date-input {
+      font-size: 11px; color: var(--text); flex-shrink: 0;
       background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 10px;
+      outline: none; cursor: pointer;
     }
+    #date-input:focus { border-color: var(--blue); }
 
     /* ── TABS ──────────────────────────────────────────────────── */
     #tabs {
@@ -256,7 +258,7 @@
   <select id="trainer-select" onchange="onTrainerChange()">
     <option value="">— Seleccionar —</option>
   </select>
-  <div id="date-display"></div>
+  <input type="date" id="date-input" onchange="onDateChange()" />
 </div>
 
 <!-- ── TABS ───────────────────────────────────────────────────────── -->
@@ -322,19 +324,8 @@
     </div>
 
     <div class="form-row">
-      <label>Dirección (calle + número)</label>
-      <input class="form-input" id="f-address" placeholder="Ej: Carrer de Balmes, 45" />
-    </div>
-
-    <div class="form-row-2">
-      <div>
-        <label>Portal / Escalera</label>
-        <input class="form-input" id="f-portal" placeholder="Ej: Portal A, Esc. 2" />
-      </div>
-      <div>
-        <label>Piso / Local</label>
-        <input class="form-input" id="f-floor" placeholder="Ej: 3º 2ª, Bj. Local" />
-      </div>
+      <label>Dirección (calle, número, portal, piso…)</label>
+      <input class="form-input" id="f-address" placeholder="Ej: Balmes 45, Portal A, 3º 2ª" />
     </div>
 
     <div class="form-row-2">
@@ -417,11 +408,12 @@ const TYPE_LABELS = { buzones:"Buzones/Portería", local:"Local comercial", cotx
 // ═══════════════════════════════════════════════════════════════════
 const CFG_KEY = "flyers_firebase_cfg";
 
-let db            = null;
-let currentTrainer = "";
-let todayKey       = "";
-let todayData      = { summary: { timeFrom:"", timeTo:"", hours:0, leads:0, conversions:0 }, flyers:{} };
-let allReports     = {};   // { dateKey: { trainerId: { summary, flyers } } }
+let db              = null;
+let currentTrainer  = "";
+let todayActual     = "";   // siempre la fecha de hoy (para badge "hoy")
+let selectedDateKey = "";   // fecha actualmente seleccionada
+let todayData       = { summary: { timeFrom:"", timeTo:"", hours:0, leads:0, conversions:0 }, flyers:{} };
+let allReports      = {};   // { dateKey: { trainerId: { summary, flyers } } }
 
 let statModalKey   = "";
 let statModalVal   = 0;
@@ -439,8 +431,9 @@ function formatDate(key) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  todayKey = todayStr();
-  document.getElementById("date-display").textContent = formatDate(todayKey);
+  todayActual     = todayStr();
+  selectedDateKey = todayActual;
+  document.getElementById("date-input").value = todayActual;
 
   // populate trainer select
   const sel = document.getElementById("trainer-select");
@@ -451,9 +444,18 @@ window.addEventListener("DOMContentLoaded", () => {
     sel.appendChild(opt);
   });
 
-  // restore last trainer
+  // restore last trainer — si no hay ninguno guardado, abrir en pestaña Equipo
   const saved = localStorage.getItem("tracker_trainer");
-  if (saved) { sel.value = saved; currentTrainer = saved; }
+  if (saved) {
+    sel.value = saved;
+    currentTrainer = saved;
+  } else {
+    // Sin entrenador seleccionado → ir directamente a la pestaña Equipo
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelector('[data-tab="equip"]').classList.add("active");
+    document.getElementById("tab-equip").classList.add("active");
+  }
 
   // tabs
   document.querySelectorAll(".tab").forEach(tab => {
@@ -496,6 +498,10 @@ function initFirebase() {
       allReports = snap.val() || {};
       refreshTodayData();
       renderAll();
+      // Mostrar hora de última actualización
+      const now = new Date();
+      const hhmm = String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+      document.getElementById("sync-label").textContent = `Actualizado a las ${hhmm}`;
     });
 
   } catch(e) {
@@ -507,8 +513,8 @@ function initFirebase() {
 }
 
 function refreshTodayData() {
-  if (currentTrainer && allReports[todayKey] && allReports[todayKey][currentTrainer]) {
-    todayData = allReports[todayKey][currentTrainer];
+  if (currentTrainer && allReports[selectedDateKey] && allReports[selectedDateKey][currentTrainer]) {
+    todayData = allReports[selectedDateKey][currentTrainer];
   } else {
     todayData = { summary: { timeFrom:"", timeTo:"", hours:0, leads:0, conversions:0 }, flyers:{} };
   }
@@ -521,12 +527,22 @@ function onTrainerChange() {
   renderAll();
 }
 
+function onDateChange() {
+  selectedDateKey = document.getElementById("date-input").value || todayActual;
+  refreshTodayData();
+  renderAll();
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════════════════════
 function renderAll() {
   renderStats();
   renderFlyerList();
+  // Actualizar también la pestaña activa si es Equipo o Historial
+  const activeTab = document.querySelector(".tab.active")?.dataset?.tab;
+  if (activeTab === "equip")    renderTeam();
+  if (activeTab === "historial") renderHistory();
 }
 
 function renderStats() {
@@ -556,9 +572,7 @@ function renderFlyerList() {
         <div class="flyer-card-body">
           <div class="flyer-address">${f.address || "Sin dirección"}</div>
           <div class="flyer-detail">
-            ${f.portal ? `<strong>${f.portal}</strong>` : ""}
-            ${f.floor  ? ` · ${f.floor}` : ""}
-            ${f.qty > 1 ? ` · <strong>${f.qty} flyers</strong>` : ""}
+            ${f.qty > 1 ? `<strong>${f.qty} flyers</strong>` : ""}
           </div>
           <span class="flyer-type-badge type-${f.type}">${TYPE_LABELS[f.type]||f.type}</span>
           ${f.time ? `<span class="flyer-time"> · ⏱ ${f.time}</span>` : ""}
@@ -591,7 +605,7 @@ function renderHistory() {
     const s = data.summary || {};
     const flyers = Object.values(data.flyers || {});
     const totalFlyers = flyers.reduce((acc,f) => acc + (parseInt(f.qty)||1), 0);
-    const isToday = day === todayKey;
+    const isToday = day === todayActual;
 
     return `<div class="history-day">
       <div class="history-day-header" onclick="toggleHistoryDay(this)">
@@ -607,7 +621,7 @@ function renderHistory() {
         ${flyers.length ? flyers.sort((a,b)=>(a.time||"").localeCompare(b.time||"")).map(f => `
           <div class="history-flyer-item">
             <span>${TYPE_ICONS[f.type]||"📍"}</span>
-            <span><strong>${f.address||""}</strong>${f.portal?` · ${f.portal}`:""}${f.floor?` · ${f.floor}`:""}${f.time?` <span style="color:var(--orange)">⏱${f.time}</span>`:""} ${f.qty>1?`· ${f.qty}u`:""}${f.notes?`<br><em style="opacity:.7">${f.notes}</em>`:""}</span>
+            <span><strong>${f.address||""}</strong>${f.time?` <span style="color:var(--orange)">⏱${f.time}</span>`:""} ${f.qty>1?`· ${f.qty}u`:""}${f.notes?`<br><em style="opacity:.7">${f.notes}</em>`:""}</span>
           </div>`).join("") : "<div style='font-size:11px;color:var(--sub);padding:6px 0'>Sin detalles de flyers.</div>"}
       </div>
     </div>`;
@@ -622,7 +636,7 @@ function toggleHistoryDay(header) {
 // ── TEAM VIEW ──────────────────────────────────────────────────────
 function renderTeam() {
   const container = document.getElementById("team-list");
-  const todayAll  = allReports[todayKey] || {};
+  const todayAll  = allReports[selectedDateKey] || {};
 
   if (!Object.keys(todayAll).length) {
     container.innerHTML = `<div class="empty"><span class="empty-icon">👥</span>Sin actividad registrada hoy.</div>`;
@@ -649,7 +663,7 @@ function renderTeam() {
       </div>
       ${flyers.length ? `<div class="team-flyer-list">${
         flyers.sort((a,b)=>(a.time||"").localeCompare(b.time||"")).map(f =>
-          `<div class="team-flyer-row"><span>${TYPE_ICONS[f.type]||"📍"}</span><span>${f.address||""}${f.portal?` · ${f.portal}`:""}${f.floor?` · ${f.floor}`:""}${f.time?` <span style="color:var(--orange)">⏱${f.time}</span>`:""}</span></div>`
+          `<div class="team-flyer-row"><span>${TYPE_ICONS[f.type]||"📍"}</span><span>${f.address||""}${f.time?` <span style="color:var(--orange)">⏱${f.time}</span>`:""}</span></div>`
         ).join("")
       }</div>` : ""}
     </div>`;
@@ -661,11 +675,11 @@ function renderTeam() {
 // ═══════════════════════════════════════════════════════════════════
 function writeSummary(data) {
   if (!currentTrainer) return;
-  const path = `reports/${todayKey}/${currentTrainer}/summary`;
-  if (!allReports[todayKey]) allReports[todayKey] = {};
-  if (!allReports[todayKey][currentTrainer]) allReports[todayKey][currentTrainer] = { summary:{}, flyers:{} };
-  allReports[todayKey][currentTrainer].summary = Object.assign(
-    allReports[todayKey][currentTrainer].summary || {}, data
+  const path = `reports/${selectedDateKey}/${currentTrainer}/summary`;
+  if (!allReports[selectedDateKey]) allReports[selectedDateKey] = {};
+  if (!allReports[selectedDateKey][currentTrainer]) allReports[selectedDateKey][currentTrainer] = { summary:{}, flyers:{} };
+  allReports[selectedDateKey][currentTrainer].summary = Object.assign(
+    allReports[selectedDateKey][currentTrainer].summary || {}, data
   );
   if (db) db.ref(path).update(data);
   refreshTodayData();
@@ -674,14 +688,14 @@ function writeSummary(data) {
 
 function writeFlyer(entry) {
   if (!currentTrainer) return;
-  const path = `reports/${todayKey}/${currentTrainer}/flyers`;
+  const path = `reports/${selectedDateKey}/${currentTrainer}/flyers`;
   if (db) {
     db.ref(path).push(entry);
   } else {
-    if (!allReports[todayKey]) allReports[todayKey] = {};
-    if (!allReports[todayKey][currentTrainer]) allReports[todayKey][currentTrainer] = { summary:{}, flyers:{} };
+    if (!allReports[selectedDateKey]) allReports[selectedDateKey] = {};
+    if (!allReports[selectedDateKey][currentTrainer]) allReports[selectedDateKey][currentTrainer] = { summary:{}, flyers:{} };
     const key = "local_" + Date.now();
-    allReports[todayKey][currentTrainer].flyers[key] = entry;
+    allReports[selectedDateKey][currentTrainer].flyers[key] = entry;
     refreshTodayData();
     renderAll();
   }
@@ -689,11 +703,11 @@ function writeFlyer(entry) {
 
 function deleteFlyer(key) {
   if (!currentTrainer) return;
-  const path = `reports/${todayKey}/${currentTrainer}/flyers/${key}`;
+  const path = `reports/${selectedDateKey}/${currentTrainer}/flyers/${key}`;
   if (db) {
     db.ref(path).remove();
   } else {
-    delete allReports[todayKey][currentTrainer].flyers[key];
+    delete allReports[selectedDateKey][currentTrainer].flyers[key];
     refreshTodayData();
     renderAll();
   }
@@ -723,8 +737,6 @@ function saveFlyerEntry() {
   const entry = {
     type:    document.getElementById("f-type").value,
     address,
-    portal:  document.getElementById("f-portal").value.trim(),
-    floor:   document.getElementById("f-floor").value.trim(),
     time:    document.getElementById("f-time").value,
     qty:     parseInt(document.getElementById("f-qty").value) || 1,
     notes:   document.getElementById("f-notes").value.trim(),
@@ -739,8 +751,6 @@ function saveFlyerEntry() {
 
 function clearFlyerForm() {
   document.getElementById("f-address").value = "";
-  document.getElementById("f-portal").value  = "";
-  document.getElementById("f-floor").value   = "";
   document.getElementById("f-notes").value   = "";
   document.getElementById("f-qty").value     = "1";
   document.getElementById("f-type").value    = "buzones";
