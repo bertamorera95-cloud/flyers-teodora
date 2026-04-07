@@ -503,6 +503,7 @@ let activeTeamFilter = "";   // "" = all
 let searchQuery      = "";
 let activeZoneId     = null;
 let markers          = {};
+let buildingMarkers  = {};  // { bldId: circleMarker }
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function teamById(id) { return TEAM.find(t => t.id === id) || TEAM[0]; }
@@ -742,6 +743,7 @@ function renderAll() {
   renderList();
   updateStats();
   ZONES.forEach(z => refreshMarker(z.id));
+  Object.keys(buildingMarkers).forEach(id => refreshBuildingMarker(id));
 }
 
 // team filter pills
@@ -909,6 +911,44 @@ function showToast(msg) {
 // ═══════════════════════════════════════════════════════════════════════════
 //  EDIFICIS — punts taronja petits via Overpass API
 // ═══════════════════════════════════════════════════════════════════════════
+function bldColor(id) {
+  const d = zoneData(id);
+  if (d.done) return { fill: "#3ecf8e", stroke: "#2aaf6e" };
+  const team = teamById(d.assignedTo);
+  if (d.assignedTo) return { fill: team.color, stroke: team.color };
+  return { fill: "#f5a623", stroke: "#c45f00" };
+}
+
+function refreshBuildingMarker(id) {
+  const m = buildingMarkers[id];
+  if (!m) return;
+  const c = bldColor(id);
+  m.setStyle({ fillColor: c.fill, color: c.stroke, fillOpacity: zoneData(id).done ? 0.5 : 0.85 });
+  if (m.isPopupOpen()) m.setPopupContent(makeBldPopupContent(id, m._bldName));
+}
+
+function makeBldPopupContent(id, name) {
+  const d = zoneData(id);
+  return `<div class="popup-title">${name}</div>
+    <div class="popup-sub">Edificio residencial</div>
+    <div class="popup-assign-row">
+      <span class="popup-assign-label">Asignado a:</span>
+      <select class="popup-assign-select" onchange="assignZone('${id}', this.value)">
+        ${makeTeamOptions(d.assignedTo)}
+      </select>
+    </div>
+    <button class="popup-btn ${d.done?"done-btn":""}" onclick="toggleBld('${id}')">
+      ${d.done ? "↺ Marcar como PENDIENTE" : "✓ Marcar como HECHA"}
+    </button>`;
+}
+
+function toggleBld(id) {
+  const done = !zoneData(id).done;
+  writeZone(id, { done });
+  map.closePopup();
+  showToast(done ? "✓ Edificio marcado como HECHO" : "↺ Edificio marcado como PENDIENTE");
+}
+
 function loadBuildings() {
   const query = `[out:json][timeout:15];
     way["building"](around:300,${CENTER[0]},${CENTER[1]});
@@ -928,21 +968,25 @@ function loadBuildings() {
         );
         if (tooClose) return;
 
-        L.circleMarker([lat, lon], {
-          radius: 4,
-          color: "#c45f00",
-          fillColor: "#f5a623",
-          fillOpacity: 0.75,
-          weight: 1,
-          opacity: 0.9,
+        const id   = "bld_" + Math.round(lat * 10000) + "_" + Math.round(lon * 10000);
+        const name = el.tags && el.tags["addr:street"]
+          ? `${el.tags["addr:street"]} ${el.tags["addr:housenumber"] || ""}`.trim()
+          : "Edificio residencial";
+
+        const c = bldColor(id);
+        const m = L.circleMarker([lat, lon], {
+          radius: 5,
+          color: c.stroke,
+          fillColor: c.fill,
+          fillOpacity: 0.85,
+          weight: 1.5,
+          opacity: 1,
           interactive: true,
-        }).addTo(map)
-          .bindTooltip(
-            el.tags && el.tags["addr:street"]
-              ? `${el.tags["addr:street"]} ${el.tags["addr:housenumber"] || ""}`.trim()
-              : "Edificio residencial",
-            { direction: "top", offset: [0, -4] }
-          );
+        }).addTo(map);
+
+        m._bldName = name;
+        m.bindPopup(makeBldPopupContent(id, name));
+        buildingMarkers[id] = m;
       });
     })
     .catch(() => {}); // fallo silencioso si no hay red
